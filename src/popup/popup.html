@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Autofill</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="logo">✦</div>
+      <div><h1>Smart Autofill</h1><p>QA test data generator</p></div>
+    </header>
+    <button id="fillButton" class="primary">✦ Fill entire page</button>
+    <p id="status" class="status" role="status">Ready to fill the current page.</p>
+    <ul id="details" class="details" hidden></ul>
+    <section>
+      <div class="section-heading"><h2>Rules</h2><span>Saved locally</span></div>
+      <details open>
+        <summary>Email and company</summary>
+        <label>Email domain<input id="emailDomain" type="text" placeholder="sample.com" /></label>
+        <label>Domain suffix
+          <select id="domainSuffix">
+            <option value=".com">.com</option>
+            <option value=".net">.net</option>
+            <option value=".org">.org</option>
+            <option value=".io">.io</option>
+            <option value=".co">.co</option>
+          </select>
+        </label>
+      </details>
+      <details>
+        <summary>Age and experience</summary>
+        <div class="two-col">
+          <label>Age min<input id="ageMin" type="number" min="0" max="120" /></label>
+          <label>Age max<input id="ageMax" type="number" min="0" max="120" /></label>
+        </div>
+        <div class="two-col">
+          <label>Experience min<input id="experienceMin" type="number" min="0" max="80" /></label>
+          <label>Experience max<input id="experienceMax" type="number" min="0" max="80" /></label>
+        </div>
+      </details>
+      <details>
+        <summary>Country and formats</summary>
+        <label>Country
+          <select id="country">
+            <option value="US">United States</option>
+            <option value="IN">India</option>
+            <option value="GB">United Kingdom</option>
+            <option value="CA">Canada</option>
+            <option value="AU">Australia</option>
+          </select>
+        </label>
+        <label>Phone format
+          <select id="phoneFormat">
+            <option value="national">National</option>
+            <option value="international">International (+ country code)</option>
+          </select>
+        </label>
+        <label>Date format for text fields
+          <select id="dateFormat">
+            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+          </select>
+        </label>
+      </details>
+      <details>
+        <summary>Form behavior</summary>
+        <label>Dropdown behavior
+          <select id="dropdownMode">
+            <option value="first">First valid option</option>
+            <option value="random">Random valid option</option>
+          </select>
+        </label>
+        <label class="check"><input id="fillExisting" type="checkbox" /> Replace fields that already have values</label>
+      </details>
+      <details>
+        <summary>Custom field rules</summary>
+        <label>One <code>keyword = value</code> per line
+          <textarea id="customRules" rows="4" placeholder="employee id = EMP-1001&#10;nickname = {firstName}"></textarea>
+        </label>
+      </details>
+      <button id="saveButton" class="secondary">Save rules</button>
+    </section>
+    <footer>No API key · No cloud processing · Never submits forms</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Browser test output
+e2e/.generated/
+test-results/
+playwright-report/
+blob-report/
+
+# Coverage and logs
+coverage/
+*.log
+
+# Local environment
+.env
+.env.*
+
+# Editors and operating systems
+.claude/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

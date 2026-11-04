@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Autofill – QA Test Data",
+  "version": "0.1.0",
+  "description": "Fill web forms with realistic, connected test data in one click. Runs locally; no API key required.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "action": {
+    "default_title": "Smart Autofill",
+    "default_popup": "popup.html"
+  },
+  "icons": {}
+}
