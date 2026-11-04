@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { formatCustomRules, parseCustomRules, validateSettings } from "../src/shared/settings";
+import { DEFAULT_SETTINGS } from "../src/shared/types";
 import { settingsWith } from "./helpers";
+
+describe("DEFAULT_SETTINGS", () => {
+  it("defaults to India and preserves existing values", () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ country: "IN", fillExisting: false, dropdownMode: "first" });
+  });
+});
 
 describe("validateSettings", () => {
   it("accepts the defaults", () => {

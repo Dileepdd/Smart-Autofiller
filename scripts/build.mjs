@@ -6,7 +6,7 @@ const outdir = "dist";
 
 await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
-await cp("public/manifest.json", `${outdir}/manifest.json`);
+await cp("public", outdir, { recursive: true });
 
 const common = {
   bundle: true,

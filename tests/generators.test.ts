@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findCity, findLocale, LOCALES } from "../src/generators/locales";
 import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets } from "../src/generators/profile";
-import { customRuleValue, GeneratedKind, generateValue } from "../src/generators/values";
+import { customRuleValue, dateCandidates, GeneratedKind, generateValue } from "../src/generators/values";
 import { AutofillSettings } from "../src/shared/types";
 import { find, render, settingsWith } from "./helpers";
 
@@ -23,6 +23,13 @@ const generateFor = (html: string, kind: GeneratedKind, overrides: Partial<Autof
 };
 
 describe("createProfile identity", () => {
+  it("keeps the middle name separate from the full name", () => {
+    const profile = createProfile(settingsWith());
+    expect(profile.middleName).not.toBe("");
+    expect(profile.fullName.split(" ").length).toBeGreaterThanOrEqual(2);
+    expect(profile.fullName).toBe(`${profile.firstName} ${profile.lastName}`);
+  });
+
   it("builds the full name from the first and last name", () => {
     const profile = createProfile(settingsWith());
     expect(profile.fullName).toBe(`${profile.firstName} ${profile.lastName}`);
@@ -285,6 +292,93 @@ describe("field constraints", () => {
 
   it("ignores an invalid pattern", () => {
     expect(generateFor('<input id="field" pattern="[">', "zip", { country: "IN" })).toMatch(/^\d{6}$/);
+  });
+});
+
+describe("constrained identifiers", () => {
+  const india = { country: "IN" } as const;
+
+  it("shortens a phone to its local digits for maxlength", () => {
+    expect(generateFor('<input id="field" maxlength="10">', "phone", india)).toMatch(/^9\d{9}$/);
+  });
+
+  it("drops the country code first when maxlength is tight", () => {
+    expect(generateFor('<input id="field" maxlength="10">', "phone", { ...india, phoneFormat: "international" })).toMatch(/^9\d{9}$/);
+  });
+
+  it("keeps the real number when a pattern wants digits", () => {
+    render('<input id="a" pattern="[0-9]{10}"><input id="b" maxlength="10">');
+    const settings = settingsWith({ country: "GB" });
+    const profile = createProfile(settings);
+    expect(generateValue("phone", settings, profile, find<HTMLInputElement>("#a")))
+      .toBe(generateValue("phone", settings, profile, find<HTMLInputElement>("#b")));
+  });
+
+  it("gives a number input digits instead of a value it would discard", () => {
+    expect(generateFor('<input id="field" type="number">', "phone", india)).toMatch(/^9\d{9}$/);
+  });
+
+  it("gives a number input a number even when the value has no digits", () => {
+    expect(generateFor('<input id="field" type="number">', "text")).toMatch(/^\d+$/);
+  });
+
+  it("removes separators from a tax ID before shortening it", () => {
+    expect(generateFor('<input id="field" maxlength="11">', "taxId", { country: "AU" })).toMatch(/^\d{11}$/);
+  });
+
+  it("still cuts ordinary text at maxlength", () => {
+    expect(generateFor('<input id="field" maxlength="4">', "company")).toHaveLength(4);
+  });
+
+  it("builds an Indian GSTIN around the PAN", () => {
+    const { gstin, taxId } = createProfile(settingsWith(india));
+    expect(gstin).toMatch(/^\d{2}[A-Z]{3}P[A-Z]\d{4}[A-Z]1Z\d$/);
+    expect(gstin).toContain(taxId);
+  });
+
+  it("uses the tax ID as the GSTIN outside India", () => {
+    const { gstin, taxId } = createProfile(settingsWith({ country: "GB" }));
+    expect(gstin).toBe(taxId);
+  });
+});
+
+describe("passwords", () => {
+  it("meets common strength rules", () => {
+    for (const { password } of sampleProfiles()) {
+      expect(password).toMatch(/[A-Z]/);
+      expect(password).toMatch(/[a-z]/);
+      expect(password).toMatch(/[0-9]/);
+      expect(password).toMatch(/[^A-Za-z0-9]/);
+      expect(password.length).toBeGreaterThanOrEqual(12);
+    }
+  });
+
+  it("reaches a field's minlength", () => {
+    expect(generateFor('<input id="field" minlength="24">', "password")).toHaveLength(24);
+  });
+
+  it("stays identical across fields that share a pattern", () => {
+    render('<input id="a" pattern="[0-9]{8}"><input id="b" pattern="[0-9]{8}">');
+    const settings = settingsWith();
+    const profile = createProfile(settings);
+    const first = generateValue("password", settings, profile, find<HTMLInputElement>("#a"));
+    expect(first).toMatch(/^[0-9]{8}$/);
+    expect(generateValue("password", settings, profile, find<HTMLInputElement>("#b"))).toBe(first);
+  });
+});
+
+describe("date candidates", () => {
+  const date = new Date(1990, 4, 23);
+
+  it("offers the placeholder format, then the saved one, then common ones, without repeats", () => {
+    render('<input id="field" placeholder="dd.mm.yyyy">');
+    expect(dateCandidates(date, settingsWith({ dateFormat: "YYYY-MM-DD" }), find<HTMLInputElement>("#field")))
+      .toEqual(["23.05.1990", "1990-05-23", "05/23/1990", "23/05/1990"]);
+  });
+
+  it("ignores a placeholder that is not a date format", () => {
+    render('<input id="field" placeholder="Select date">');
+    expect(dateCandidates(date, settingsWith(), find<HTMLInputElement>("#field"))[0]).toBe("1990-05-23");
   });
 });
 

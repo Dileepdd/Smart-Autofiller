@@ -5,6 +5,10 @@ const NATIVE_FIELDS =
   ":not([type=image]):not([type=color]):not([type=range]), textarea, select";
 const COMBOBOXES = "[role=combobox], [aria-haspopup=listbox]";
 const EDITABLES = "[contenteditable=''], [contenteditable=true]";
+/** Editable day, month and year sections of a sectioned date field, which is filled through its own input. */
+const DATE_SECTIONS = "[role=spinbutton]";
+/** MUI X keeps this input hidden from assistive technology, yet it is the field's real value. */
+const SECTIONED_DATE_INPUT = "input.MuiPickersInputBase-input";
 
 // Tag checks rather than instanceof: elements inside iframes belong to a different window.
 export const isSelect = (element: Element): element is HTMLSelectElement => element.tagName === "SELECT";
@@ -17,10 +21,11 @@ export const isCombobox = (element: Element): boolean => !isSelect(element) && e
 export const isEditable = (element: Element): boolean => !isCombobox(element) && element.matches(EDITABLES);
 
 export const isVisible = (element: HTMLElement): boolean => {
-  const style = getComputedStyle(element);
-  const rect = element.getBoundingClientRect();
+  const target = element.matches(SECTIONED_DATE_INPUT) && element.parentElement ? element.parentElement : element;
+  const style = getComputedStyle(target);
+  const rect = target.getBoundingClientRect();
   return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0 &&
-    rect.right > 0 && rect.bottom > 0 && !element.closest("[aria-hidden=true]");
+    rect.right > 0 && rect.bottom > 0 && !target.closest("[aria-hidden=true], [inert]");
 };
 
 /** True when the control cannot be operated at all. */
@@ -55,6 +60,7 @@ export function collectFields(document: Document): HTMLElement[] {
     Array.from(root.querySelectorAll<HTMLElement>(`${NATIVE_FIELDS}, ${COMBOBOXES}, ${EDITABLES}`))
   );
   return found.filter((element) => {
+    if (element.matches(DATE_SECTIONS)) return false;
     if (isEditable(element)) return !element.parentElement?.closest(EDITABLES);
     // A combobox wrapper already owns the input inside it.
     return !element.parentElement?.closest(COMBOBOXES);

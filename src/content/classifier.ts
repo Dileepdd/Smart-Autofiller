@@ -3,7 +3,7 @@ import { fieldSignals } from "./context";
 export type FieldKind =
   | "firstName" | "middleName" | "lastName" | "fullName" | "email"
   | "company" | "jobTitle" | "domain" | "website" | "username" | "password"
-  | "phone" | "age" | "experience" | "taxId" | "zip" | "street" | "addressLine2"
+  | "phone" | "age" | "experience" | "taxId" | "gstin" | "zip" | "street" | "addressLine2"
   | "address" | "city" | "state" | "country" | "dateOfBirth" | "date" | "futureDate"
   | "dateTime" | "time" | "month" | "week" | "url" | "number" | "message" | "text"
   | "skip";
@@ -24,7 +24,8 @@ const RULES: ReadonlyArray<readonly [FieldKind, RegExp]> = [
   // Check domain and website before company: labels such as "Company Domain" contain both terms.
   ["domain", /\bdomain\b/],
   ["website", /\b(web ?site|home ?page|company url)\b/],
-  ["taxId", /\b(federal tax|tax ?id|tax identification|tax ?(no|number)|tin|ein|vat( ?(no|number|id))?|gstin|gst( ?(no|number))?|pan( ?(no|number|card))?|abn)\b/],
+  ["gstin", /\b(gstin|gst( ?(no|number))?)\b/],
+  ["taxId", /\b(federal tax|tax ?id|tax identification|tax ?(no|number)|tin|ein|vat( ?(no|number|id))?|pan( ?(no|number|card))?|abn)\b/],
   ["experience", /\b(experience|yoe|years? of exp|exp years)\b/],
   ["age", /\bage\b/],
   ["zip", /\b(zip( ?code)?|postal( ?code)?|post ?code|pin ?code)\b/],

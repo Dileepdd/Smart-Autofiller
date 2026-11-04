@@ -1,0 +1,39 @@
+{
+  "name": "smart-autofill-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Real-browser tests for Smart Autofill. Kept apart so none of this reaches the extension or its dependency tree.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "install-browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@angular/common": "^21.2.26",
+    "@angular/compiler": "^21.2.26",
+    "@angular/core": "^21.2.26",
+    "@angular/forms": "^21.2.26",
+    "@angular/platform-browser": "^21.2.26",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@headlessui/react": "^2.2.10",
+    "@mui/material": "^9.5.0",
+    "@mui/x-date-pickers": "^9.17.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
+    "antd": "^6.7.0",
+    "dayjs": "^1.11.23",
+    "element-plus": "^2.14.7",
+    "esbuild": "^0.28.2",
+    "flatpickr": "^4.6.13",
+    "react": "^19.3.1",
+    "react-datepicker": "^9.1.0",
+    "react-dom": "^19.3.1",
+    "react-select": "^5.10.2",
+    "rxjs": "^7.8.2",
+    "typescript": "^7.0.2",
+    "vue": "^3.5.44",
+    "zone.js": "^0.16.3"
+  }
+}

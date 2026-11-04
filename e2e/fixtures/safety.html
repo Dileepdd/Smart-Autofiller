@@ -1,0 +1,19 @@
+<!doctype html>
+<html><body>
+<form id="form" action="/simple.html">
+  <div><label for="email">Email</label><input id="email" required></div>
+  <div><label for="terms">Terms</label><input id="terms" type="checkbox" required></div>
+  <!-- No type attribute, so this button submits the form if clicked. -->
+  <button id="trigger" aria-haspopup="listbox" aria-label="Country"></button>
+  <button id="send" type="submit">Send</button>
+  <button id="danger" type="button">Delete account</button>
+  <a id="leave" href="/simple.html" role="combobox" aria-label="City"></a>
+</form>
+<script>
+  const counts = { submits: 0, submitClicks: 0, dangerClicks: 0 };
+  document.getElementById("form").addEventListener("submit", (event) => { event.preventDefault(); counts.submits++; });
+  document.getElementById("send").addEventListener("click", () => { counts.submitClicks++; });
+  document.getElementById("danger").addEventListener("click", () => { counts.dangerClicks++; });
+  window.__state = () => ({ ...counts, url: location.href });
+</script>
+</body></html>

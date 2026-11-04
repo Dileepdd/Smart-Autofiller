@@ -7,85 +7,102 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <main class="app">
-    <header>
-      <div class="logo">✦</div>
-      <div><h1>Smart Autofill</h1><p>QA test data generator</p></div>
+  <div id="mainView" class="view">
+    <header class="bar">
+      <img src="icons/icon-32.png" alt="" width="16" height="16" />
+      <h1>Smart Autofill</h1>
+      <button id="settingsButton" class="icon-button" type="button" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 4.5h6M11 4.5h3M2 11.5h3M8 11.5h6" /><circle cx="9.5" cy="4.5" r="1.5" /><circle cx="6.5" cy="11.5" r="1.5" /></svg>
+      </button>
     </header>
-    <button id="fillButton" class="primary">✦ Fill entire page</button>
-    <p id="status" class="status" role="status">Ready to fill the current page.</p>
-    <ul id="details" class="details" hidden></ul>
-    <section>
-      <div class="section-heading"><h2>Rules</h2><span>Saved locally</span></div>
-      <details open>
-        <summary>Email and company</summary>
-        <label>Email domain<input id="emailDomain" type="text" placeholder="sample.com" /></label>
-        <label>Domain suffix
-          <select id="domainSuffix">
-            <option value=".com">.com</option>
-            <option value=".net">.net</option>
-            <option value=".org">.org</option>
-            <option value=".io">.io</option>
-            <option value=".co">.co</option>
-          </select>
-        </label>
-      </details>
-      <details>
-        <summary>Age and experience</summary>
-        <div class="two-col">
-          <label>Age min<input id="ageMin" type="number" min="0" max="120" /></label>
-          <label>Age max<input id="ageMax" type="number" min="0" max="120" /></label>
+    <div class="body">
+      <button id="fillButton" class="primary" type="button">Fill Entire Page</button>
+      <p id="profile" class="hint"></p>
+      <p id="status" class="status" role="status"></p>
+      <dl id="summary" class="summary" hidden>
+        <div><dt>Filled</dt><dd id="countFilled">0</dd></div>
+        <div><dt>Skipped</dt><dd id="countSkipped">0</dd></div>
+        <div><dt>Errors</dt><dd id="countErrors">0</dd></div>
+        <div><dt>Unsupported</dt><dd id="countUnsupported">0</dd></div>
+      </dl>
+      <ul id="details" class="details" hidden></ul>
+    </div>
+    <footer class="foot">Runs locally. Forms are never submitted.</footer>
+  </div>
+
+  <div id="settingsView" class="view" hidden>
+    <header class="bar">
+      <button id="backButton" class="icon-button" type="button" aria-label="Back" title="Back">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg>
+      </button>
+      <h1>Settings</h1>
+      <span id="saveState" class="save-state" role="status"></span>
+    </header>
+    <form id="settingsForm" class="settings">
+      <p id="settingsError" class="error" role="alert" hidden></p>
+
+      <h2>Identity</h2>
+      <div class="row"><label for="emailDomain">Email domain</label><input id="emailDomain" type="text" placeholder="sample.com" /></div>
+      <div class="row"><label for="domainSuffix">Domain suffix</label>
+        <select id="domainSuffix">
+          <option value=".com">.com</option>
+          <option value=".net">.net</option>
+          <option value=".org">.org</option>
+          <option value=".io">.io</option>
+          <option value=".co">.co</option>
+        </select>
+      </div>
+      <div class="row"><span id="ageLabel">Age</span>
+        <div class="range" role="group" aria-labelledby="ageLabel">
+          <input id="ageMin" type="number" min="0" max="120" aria-label="Minimum age" /><span>to</span>
+          <input id="ageMax" type="number" min="0" max="120" aria-label="Maximum age" />
         </div>
-        <div class="two-col">
-          <label>Experience min<input id="experienceMin" type="number" min="0" max="80" /></label>
-          <label>Experience max<input id="experienceMax" type="number" min="0" max="80" /></label>
+      </div>
+      <div class="row"><span id="experienceLabel">Experience</span>
+        <div class="range" role="group" aria-labelledby="experienceLabel">
+          <input id="experienceMin" type="number" min="0" max="80" aria-label="Minimum experience" /><span>to</span>
+          <input id="experienceMax" type="number" min="0" max="80" aria-label="Maximum experience" />
         </div>
-      </details>
-      <details>
-        <summary>Country and formats</summary>
-        <label>Country
-          <select id="country">
-            <option value="US">United States</option>
-            <option value="IN">India</option>
-            <option value="GB">United Kingdom</option>
-            <option value="CA">Canada</option>
-            <option value="AU">Australia</option>
-          </select>
-        </label>
-        <label>Phone format
-          <select id="phoneFormat">
-            <option value="national">National</option>
-            <option value="international">International (+ country code)</option>
-          </select>
-        </label>
-        <label>Date format for text fields
-          <select id="dateFormat">
-            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-          </select>
-        </label>
-      </details>
-      <details>
-        <summary>Form behavior</summary>
-        <label>Dropdown behavior
-          <select id="dropdownMode">
-            <option value="first">First valid option</option>
-            <option value="random">Random valid option</option>
-          </select>
-        </label>
-        <label class="check"><input id="fillExisting" type="checkbox" /> Replace fields that already have values</label>
-      </details>
-      <details>
-        <summary>Custom field rules</summary>
-        <label>One <code>keyword = value</code> per line
-          <textarea id="customRules" rows="4" placeholder="employee id = EMP-1001&#10;nickname = {firstName}"></textarea>
-        </label>
-      </details>
-      <button id="saveButton" class="secondary">Save rules</button>
-    </section>
-    <footer>No API key · No cloud processing · Never submits forms</footer>
-  </main>
+      </div>
+
+      <h2>Region</h2>
+      <div class="row"><label for="country">Country</label>
+        <select id="country">
+          <option value="IN">India</option>
+          <option value="US">United States</option>
+          <option value="GB">United Kingdom</option>
+          <option value="CA">Canada</option>
+          <option value="AU">Australia</option>
+        </select>
+      </div>
+      <div class="row"><label for="phoneFormat">Phone format</label>
+        <select id="phoneFormat">
+          <option value="national">National</option>
+          <option value="international">International</option>
+        </select>
+      </div>
+      <div class="row"><label for="dateFormat">Date format</label>
+        <select id="dateFormat">
+          <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+          <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+          <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+        </select>
+      </div>
+
+      <h2>Filling</h2>
+      <div class="row"><label for="dropdownMode">Dropdowns</label>
+        <select id="dropdownMode">
+          <option value="first">First valid option</option>
+          <option value="random">Random valid option</option>
+        </select>
+      </div>
+      <label class="check"><input id="fillExisting" type="checkbox" /> Replace existing values</label>
+
+      <h2><label for="customRules">Custom rules</label></h2>
+      <textarea id="customRules" rows="4" spellcheck="false" placeholder="employee id = EMP-1001&#10;nickname = {firstName}"></textarea>
+      <p class="hint">One <code>keyword = value</code> per line.</p>
+    </form>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html><body>
+<form>
+  <div><label for="firstName">First Name</label><input id="firstName"></div>
+  <div><label for="lastName">Last Name</label><input id="lastName"></div>
+  <div><label for="fullName">Full Name</label><input id="fullName"></div>
+  <div><label for="email">Email</label><input id="email" type="email"></div>
+  <div><label for="company">Company Name</label><input id="company"></div>
+  <div><label for="domain">Company Domain</label><input id="domain"></div>
+  <div><label for="website">Website</label><input id="website"></div>
+  <div><label for="websiteUrl">Company URL</label><input id="websiteUrl" type="url"></div>
+
+  <div><label for="taxId">Tax ID</label><input id="taxId"></div>
+  <div><input id="taxCamel" name="taxId"></div>
+  <div><label for="taxShort">Tax ID</label><input id="taxShort" maxlength="12"></div>
+  <div><label for="gstin">GSTIN</label><input id="gstin"></div>
+
+  <div><label for="mobile">Mobile Number</label><input id="mobile"></div>
+  <div><label for="tel">Phone</label><input id="tel" type="tel"></div>
+  <div><label for="mobileMax">Mobile</label><input id="mobileMax" maxlength="10"></div>
+  <div><label for="mobileDigits">Mobile</label><input id="mobileDigits" pattern="[0-9]{10}"></div>
+  <div><label for="mobileNumber">Mobile</label><input id="mobileNumber" type="number"></div>
+
+  <div><label for="zip">Postal Code</label><input id="zip"></div>
+  <div><input id="zipCamel" name="zipCode"></div>
+  <div><label for="pin">PIN Code</label><input id="pin"></div>
+  <div><label for="zipNumber">ZIP</label><input id="zipNumber" type="number"></div>
+
+  <div><label for="street">Street Address</label><input id="street"></div>
+  <div><label for="address">Address</label><input id="address"></div>
+  <div><label for="city">City</label><input id="city"></div>
+  <div><label for="state">State</label><input id="state"></div>
+  <div><label for="country">Country</label><input id="country"></div>
+</form>
+<script>
+  window.__state = () => ({
+    ...Object.fromEntries([...document.querySelectorAll("input")].map((input) => [input.id, input.value])),
+    invalid: [...document.querySelectorAll("input")].filter((input) => !input.validity.valid).map((input) => input.id)
+  });
+</script>
+</body></html>

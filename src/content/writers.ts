@@ -47,3 +47,21 @@ export function writeSelect(select: HTMLSelectElement, value: string): void {
 
 /** A real click, so checkboxes and radios fire the events frameworks listen for. */
 export const toggle = (element: HTMLInputElement): void => element.click();
+
+/** Elements whose click would submit a form or leave the page. */
+const canSubmitOrNavigate = (element: HTMLElement): boolean => {
+  const control = element.closest<HTMLButtonElement | HTMLInputElement>("button, input[type=submit], input[type=image]");
+  return (control !== null && control.type !== "button" && control.form !== null) || element.closest("a[href]") !== null;
+};
+
+/**
+ * Component libraries differ in which of these they listen to, so a real click's full sequence
+ * is sent. The final click is withheld from anything that could submit a form or navigate.
+ */
+export function press(element: HTMLElement): void {
+  const types = ["pointerdown", "mousedown", "pointerup", "mouseup"];
+  if (!canSubmitOrNavigate(element)) types.push("click");
+  for (const type of types) {
+    element.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 }));
+  }
+}

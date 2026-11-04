@@ -1,0 +1,11 @@
+<!doctype html>
+<html><body>
+<form>
+  <div><label for="email">Email</label><input id="email"></div>
+  <div><label for="phone">Phone</label><input id="phone"></div>
+  <div><label for="city">City</label><input id="city"></div>
+</form>
+<script>
+  window.__state = () => Object.fromEntries([...document.querySelectorAll("input")].map((input) => [input.id, input.value]));
+</script>
+</body></html>

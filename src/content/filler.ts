@@ -1,9 +1,10 @@
 import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, Profile } from "../generators/profile";
-import { customRuleValue, generateValue } from "../generators/values";
+import { customRuleValue, dateCandidates, generateValue, isDateKind, pickDate } from "../generators/values";
 import { AutofillSettings, FillResult } from "../shared/types";
 import { classifyField, FieldKind, getFieldDescription } from "./classifier";
 import { comboboxHasValue, fillCombobox } from "./customDropdown";
-import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isSelect, isVisible } from "./detector";
+import { isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePicker";
+import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isInput, isSelect, isVisible } from "./detector";
 import { hasSelection, pickChoice, toChoice, usableOptions } from "./dropdown";
 import { delay, waitFor } from "./waiting";
 import { toggle, writeEditable, writeSelect, writeValue } from "./writers";
@@ -13,6 +14,8 @@ const MAX_PASSES = 4;
 const SETTLE_MS = 150;
 const DROPDOWN_TICK_MS = 30;
 const DEPENDENT_WAIT_MS = 2500;
+/** Bounds a page full of dropdowns that never open, which each cost a timeout. */
+const DROPDOWN_BUDGET_MS = 20000;
 
 /** Parents go first so that dependent lists have loaded, and the profile has settled, before their children. */
 const DROPDOWN_ORDER: readonly FieldKind[] = ["country", "state", "city"];
@@ -47,6 +50,12 @@ const markSkipped = (run: FillRun, element: HTMLElement): void => {
 const markFailed = (run: FillRun, element: HTMLElement, reason: string): void => {
   settle(run, element);
   run.result.errors++;
+  run.result.details.push(`${reason}: ${describe(element)}`);
+};
+
+const markUnsupported = (run: FillRun, element: HTMLElement, reason: string): void => {
+  settle(run, element);
+  run.result.unsupported++;
   run.result.details.push(`${reason}: ${describe(element)}`);
 };
 
@@ -89,6 +98,7 @@ async function fillComboboxField(run: FillRun, trigger: HTMLElement, kind: Field
 const isPendingSelect = (select: HTMLSelectElement): boolean => isInactive(select) || usableOptions(select).length === 0;
 
 async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<void> {
+  const deadline = Date.now() + DROPDOWN_BUDGET_MS;
   const kinds = new Map(dropdowns.map((element) => [element, classifyField(element)]));
   const rank = (element: HTMLElement): number => {
     const index = DROPDOWN_ORDER.indexOf(kinds.get(element) ?? "text");
@@ -101,6 +111,7 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
     for (const element of queue) {
       const kind = kinds.get(element) ?? "text";
       if (!element.isConnected || !isVisible(element)) { run.skipped.add(element); continue; }
+      if (Date.now() > deadline) { markFailed(run, element, "Ran out of time"); continue; }
       if (isSelect(element) && !run.settings.fillExisting && hasSelection(element)) { markSkipped(run, element); continue; }
       if (isSelect(element) && isPendingSelect(element)) { pending.push(element); continue; }
       if (!isSelect(element) && isInactive(element)) { markSkipped(run, element); continue; }
@@ -149,12 +160,28 @@ function fillChoiceGroup(run: FillRun, element: HTMLInputElement): void {
   markFilled(run, choice.radio);
 }
 
-function fillText(run: FillRun, element: HTMLInputElement | HTMLTextAreaElement): void {
+async function fillTextDate(run: FillRun, element: HTMLInputElement, kind: "dateOfBirth" | "date" | "futureDate"): Promise<void> {
+  const candidates = dateCandidates(pickDate(kind, run.profile), run.settings, element);
+  if (!(await writeFirstAcceptedDate(element, candidates))) return markUnsupported(run, element, "Unsupported date picker");
+  run.written.push(element);
+  markFilled(run, element);
+}
+
+async function fillFlatpickr(run: FillRun, element: HTMLInputElement): Promise<void> {
+  if (!run.settings.fillExisting && element.value.trim() !== "") return markSkipped(run, element);
+  const kind = classifyField(element);
+  const date = pickDate(isDateKind(kind) ? kind : "date", run.profile);
+  if (await pickFlatpickrDate(element, date)) return markFilled(run, element);
+  markUnsupported(run, element, "Unsupported date picker");
+}
+
+async function fillText(run: FillRun, element: HTMLInputElement | HTMLTextAreaElement): Promise<void> {
   if (!run.settings.fillExisting && element.value.trim() !== "") return markSkipped(run, element);
 
   const kind = classifyField(element);
   const custom = customValue(run, element);
   if (kind === "skip" && custom === undefined) return markSkipped(run, element);
+  if (custom === undefined && isDateKind(kind) && isInput(element) && element.type !== "date") return fillTextDate(run, element, kind);
 
   const value = custom ?? generateValue(kind === "skip" ? "text" : kind, run.settings, run.profile, element);
   if (!writeValue(element, value)) return markFailed(run, element, "Field rejected the value");
@@ -184,16 +211,51 @@ function fillEditable(run: FillRun, element: HTMLElement): void {
   markFilled(run, element);
 }
 
-function fillField(run: FillRun, element: HTMLElement): void {
+async function fillField(run: FillRun, element: HTMLElement): Promise<void> {
   if (run.done.has(element)) return;
+  // flatpickr marks its input readonly because the calendar is the only way to set it.
+  const calendarOnly = isInput(element) && isFlatpickr(element) && !isInactive(element);
   // Left open, not final: an earlier selection may still reveal or enable this field.
-  if (!element.isConnected || !isVisible(element) || isDisabled(element)) { run.skipped.add(element); return; }
+  if (!element.isConnected || !isVisible(element) || (isDisabled(element) && !calendarOnly)) { run.skipped.add(element); return; }
   try {
-    if (isEditable(element)) fillEditable(run, element);
+    if (calendarOnly) await fillFlatpickr(run, element);
+    else if (isEditable(element)) fillEditable(run, element);
     else if (isChoice(element)) fillChoiceGroup(run, element);
-    else fillText(run, element as HTMLInputElement | HTMLTextAreaElement);
+    else await fillText(run, element as HTMLInputElement | HTMLTextAreaElement);
   } catch {
     markFailed(run, element, "Could not fill");
+  }
+}
+
+/**
+ * A last line of defence: if a page's own handler tries to submit while values are being
+ * written, that is stopped and reported. Removed again when the fill ends.
+ */
+function blockSubmissions(run: FillRun): () => void {
+  const block = (event: Event): void => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    run.result.details.push("Blocked a form submission during the fill.");
+  };
+  window.addEventListener("submit", block, true);
+  return () => window.removeEventListener("submit", block, true);
+}
+
+const isDropdown = (element: HTMLElement): boolean => {
+  if (isSelect(element)) return true;
+  return isCombobox(element) && !(isInput(element) && isDateKind(classifyField(element)));
+};
+
+async function fillPasses(run: FillRun): Promise<void> {
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    const fields = collectFields(document).filter((element) => !run.done.has(element));
+    run.changed = false;
+
+    await fillDropdowns(run, fields.filter(isDropdown));
+    for (const element of fields.filter((field) => !isDropdown(field))) await fillField(run, element);
+
+    if (!run.changed) break;
+    await delay(SETTLE_MS);
   }
 }
 
@@ -201,22 +263,18 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
   const run: FillRun = {
     settings,
     profile: createProfile(settings),
-    result: { filled: 0, skipped: 0, errors: 0, details: [] },
+    result: { filled: 0, skipped: 0, errors: 0, unsupported: 0, details: [] },
     done: new WeakSet(),
     skipped: new Set(),
     written: [],
     changed: false
   };
 
-  for (let pass = 0; pass < MAX_PASSES; pass++) {
-    const fields = collectFields(document).filter((element) => !run.done.has(element));
-    run.changed = false;
-
-    await fillDropdowns(run, fields.filter((element) => isSelect(element) || isCombobox(element)));
-    fields.filter((element) => !isSelect(element) && !isCombobox(element)).forEach((element) => fillField(run, element));
-
-    if (!run.changed) break;
-    await delay(SETTLE_MS);
+  const allowSubmissions = blockSubmissions(run);
+  try {
+    await fillPasses(run);
+  } finally {
+    allowSubmissions();
   }
 
   reportClearedFields(run);

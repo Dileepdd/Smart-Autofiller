@@ -33,7 +33,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   domainSuffix: ".com",
   dropdownMode: "first",
   fillExisting: false,
-  country: "US",
+  country: "IN",
   phoneFormat: "national",
   dateFormat: "YYYY-MM-DD",
   customRules: []
@@ -43,5 +43,7 @@ export interface FillResult {
   filled: number;
   skipped: number;
   errors: number;
+  /** Controls that were tried but cannot be filled reliably, such as an unknown date picker. */
+  unsupported: number;
   details: string[];
 }

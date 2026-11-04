@@ -1,0 +1,15 @@
+<!doctype html>
+<html><body>
+<form id="form">
+  <div><label for="email">Email</label><input id="email"></div>
+  <button id="send" type="submit">Send</button>
+</form>
+<script>
+  const form = document.getElementById("form");
+  let submits = 0;
+  form.addEventListener("submit", (event) => { event.preventDefault(); submits++; });
+  // Pages that submit as soon as a field changes.
+  document.getElementById("email").addEventListener("change", () => form.requestSubmit());
+  window.__state = () => ({ submits });
+</script>
+</body></html>

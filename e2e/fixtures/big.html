@@ -1,0 +1,11 @@
+﻿<!doctype html>
+<html><body><form id="f"></form>
+<script>
+  const kinds = ["Email", "First Name", "Company", "City", "Notes", "Phone", "Tax ID", "Age"];
+  let html = "";
+  for (let i = 0; i < 2000; i++) html += `<div><label for="b${i}">${kinds[i % 8]} ${i}</label><input id="b${i}"></div>`;
+  for (let i = 0; i < 20; i++) html += `<div><label for="s${i}">Option ${i}</label><select id="s${i}"><option value="">Select</option><option>A</option><option>B</option></select></div>`;
+  document.getElementById("f").innerHTML = html;
+  window.__state = () => ({ emptyInputs: [...document.querySelectorAll("input")].filter((e) => !e.value).length, emptySelects: [...document.querySelectorAll("select")].filter((e) => !e.value).length });
+</script>
+</body></html>

@@ -45,7 +45,8 @@ export const LOCALES: Locale[] = [
     aliases: ["Bharat"],
     dialCode: "+91",
     phone: "9#### #####",
-    taxId: "?????####?",
+    // The fourth letter of a PAN gives the holder type, and P means an individual.
+    taxId: "???P?####?",
     regions: [
       { name: "Andhra Pradesh", code: "AP", cities: [{ name: "Visakhapatnam", postalCode: "530001" }, { name: "Vijayawada", postalCode: "520001" }] },
       { name: "Karnataka", code: "KA", cities: [{ name: "Bengaluru", postalCode: "560001" }, { name: "Mysuru", postalCode: "570001" }] },

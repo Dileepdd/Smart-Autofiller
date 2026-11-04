@@ -58,6 +58,11 @@ describe("isDisabled", () => {
     expect(isDisabled(find<FormField>("#field"))).toBe(true);
   });
 
+  it("treats a field under inert as hidden", () => {
+    render('<div inert><input id="field"></div>');
+    expect(isVisible(find("#field"))).toBe(false);
+  });
+
   it("detects aria-readonly", () => {
     render('<input id="field" aria-readonly="true">');
     expect(isDisabled(find<FormField>("#field"))).toBe(true);
@@ -114,6 +119,11 @@ describe("collectFields", () => {
   it("returns a combobox wrapper instead of the input inside it", () => {
     render('<div id="wrapper" role="combobox"><input id="inner"></div>');
     expect(ids()).toEqual(["wrapper"]);
+  });
+
+  it("leaves out the editable sections of a sectioned date field", () => {
+    render('<div><span id="month" role="spinbutton" contenteditable="true">MM</span><input id="real"></div>');
+    expect(ids()).toEqual(["real"]);
   });
 
   it("returns only the outermost editable region", () => {
@@ -577,7 +587,7 @@ describe("fillPage dynamic forms", () => {
       document.body.insertAdjacentHTML("beforeend", '<div><label for="tax">Tax ID</label><input id="tax"></div>');
     });
 
-    const result = await fillPage(settingsWith());
+    const result = await fillPage(settingsWith({ country: "US" }));
 
     expect(find("#tax").value).toMatch(/^12-\d{7}$/);
     expect(result).toMatchObject({ filled: 2, skipped: 0 });
@@ -642,7 +652,148 @@ describe("fillPage dynamic forms", () => {
   });
 });
 
+describe("fillPage date pickers", () => {
+  /** Mimics a picker that only accepts one format and clears anything else on blur. */
+  const renderStrictPicker = (format: RegExp): void => {
+    render('<div><label for="field">Date of Birth</label><input id="field"></div>');
+    const input = find("#field");
+    input.addEventListener("blur", () => { if (!format.test(input.value)) input.value = ""; });
+  };
+
+  it("finds the format a picker accepts", async () => {
+    renderStrictPicker(/^\d{2}\/\d{2}\/\d{4}$/);
+
+    const result = await fillPage(settingsWith({ dateFormat: "YYYY-MM-DD" }));
+
+    expect(find("#field").value).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(result).toMatchObject({ filled: 1, errors: 0, unsupported: 0 });
+  });
+
+  it("reports a picker that accepts nothing as unsupported, not filled", async () => {
+    renderStrictPicker(/^never$/);
+
+    const result = await fillPage(settingsWith());
+
+    expect(find("#field").value).toBe("");
+    expect(result).toMatchObject({ filled: 0, errors: 0, unsupported: 1 });
+    expect(result.details[0]).toContain("Unsupported date picker");
+  });
+
+  it("never presses Enter", async () => {
+    renderStrictPicker(/^never$/);
+    const keys = vi.fn();
+    document.addEventListener("keydown", keys);
+
+    await fillPage(settingsWith());
+    document.removeEventListener("keydown", keys);
+
+    expect(keys).not.toHaveBeenCalled();
+  });
+
+  it("treats a date input with role=combobox as a date field", async () => {
+    render('<div><label for="field">Date of Birth</label><input id="field" role="combobox"></div>');
+
+    const result = await fillPage(settingsWith());
+
+    expect(find("#field").value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result).toMatchObject({ filled: 1, errors: 0 });
+  });
+
+  it("leaves an existing date alone", async () => {
+    render('<div><label for="field">Date of Birth</label><input id="field" value="keep"></div>');
+
+    await fillPage(settingsWith());
+
+    expect(find("#field").value).toBe("keep");
+  });
+
+  it("does not open a disabled flatpickr", async () => {
+    render('<div><label for="field">Date of Birth</label><input id="field" class="flatpickr-input" readonly disabled></div>');
+    const opened = vi.fn();
+    find("#field").addEventListener("mousedown", opened);
+
+    const result = await fillPage(settingsWith());
+
+    expect(opened).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ filled: 0, skipped: 1 });
+  });
+
+  it("reports a flatpickr whose calendar never opens as unsupported", async () => {
+    render('<div><label for="field">Date of Birth</label><input id="field" class="flatpickr-input" readonly></div>');
+
+    const result = await fillPage(settingsWith());
+
+    expect(result).toMatchObject({ filled: 0, unsupported: 1 });
+  });
+});
+
 describe("fillPage safety", () => {
+  it("does not click a dropdown trigger that would submit its form", async () => {
+    render('<form id="form"><button id="field" aria-haspopup="listbox" aria-label="Country"></button></form>');
+    const clicks = vi.fn();
+    const submits = vi.fn((event: Event) => event.preventDefault());
+    find<HTMLElement>("#field").addEventListener("click", clicks);
+    find<HTMLFormElement>("#form").addEventListener("submit", submits);
+
+    await fillPage(settingsWith());
+
+    expect(clicks).not.toHaveBeenCalled();
+    expect(submits).not.toHaveBeenCalled();
+  });
+
+  it("does not click a dropdown trigger that is a link", async () => {
+    render('<a id="field" href="/delete" role="combobox" aria-label="Country"></a>');
+    const clicks = vi.fn();
+    find<HTMLElement>("#field").addEventListener("click", clicks);
+
+    await fillPage(settingsWith());
+
+    expect(clicks).not.toHaveBeenCalled();
+  });
+
+  it("stops a submission triggered by the page during a fill, and reports it", async () => {
+    render('<form id="form"><input id="field" name="email"></form>');
+    const form = find<HTMLFormElement>("#form");
+    const submits = vi.fn((event: Event) => event.preventDefault());
+    form.addEventListener("submit", submits);
+    find("#field").addEventListener("change", () => form.requestSubmit());
+
+    const result = await fillPage(settingsWith());
+
+    expect(submits).not.toHaveBeenCalled();
+    expect(result.details.join()).toContain("Blocked a form submission");
+  });
+
+  it("removes its submission guard when the fill ends", async () => {
+    render('<form id="form"><input name="email"></form>');
+    const form = find<HTMLFormElement>("#form");
+    const submits = vi.fn((event: Event) => event.preventDefault());
+    form.addEventListener("submit", submits);
+
+    await fillPage(settingsWith());
+    form.requestSubmit();
+
+    expect(submits).toHaveBeenCalledOnce();
+  });
+
+  it("leaves an existing password alone", async () => {
+    render('<input id="field" type="password" name="password" value="secret">');
+
+    await fillPage(settingsWith());
+
+    expect(find("#field").value).toBe("secret");
+  });
+
+  it("never puts a password in the report", async () => {
+    render('<input id="field" type="password" name="password" pattern="[0-9]{4}">');
+    Object.defineProperty(find("#field"), "validity", { value: { valid: false } });
+
+    const result = await fillPage(settingsWith());
+
+    expect(result.details).toHaveLength(1);
+    expect(result.details[0]).not.toContain(find("#field").value);
+  });
+
   it("never submits a form", async () => {
     render('<form id="form"><input name="email" required><input type="checkbox" required><button type="submit">Send</button></form>');
     const submits = vi.fn((event: Event) => event.preventDefault());
@@ -686,7 +837,7 @@ describe("fillPage safety", () => {
   });
 
   it("reports a field that clears its value after blur", async () => {
-    render('<div><input id="field" name="startDate"></div>');
+    render('<div><input id="field" name="city"></div>');
     const input = find("#field");
     input.addEventListener("blur", () => { setTimeout(() => { input.value = ""; }, 20); });
 
@@ -821,7 +972,7 @@ describe("fillPage field states", () => {
     `);
 
     const result = await fillPage(settingsWith({
-      emailDomain: "acme.test", ageMin: 30, ageMax: 30, experienceMin: 4, experienceMax: 4
+      country: "US", emailDomain: "acme.test", ageMin: 30, ageMax: 30, experienceMin: 4, experienceMax: 4
     }));
 
     expect(find("#full").value).toMatch(/\S+ \S+/);

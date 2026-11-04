@@ -20,6 +20,7 @@ export interface Profile {
   website: string;
   phone: string;
   taxId: string;
+  gstin: string;
   street: string;
   addressLine2: string;
   city: string;
@@ -82,6 +83,8 @@ function setLocale(profile: Profile, locale: Locale, settings: AutofillSettings)
   profile.countryCode = locale.code;
   profile.phone = formatPhone(locale, settings.phoneFormat);
   profile.taxId = faker.helpers.replaceSymbols(locale.taxId);
+  // A GSTIN wraps the holder's PAN. Other countries have no equivalent, so they use their tax ID.
+  profile.gstin = locale.code === "IN" ? `${pickInt(10, 37)}${profile.taxId}1Z${pickInt(0, 9)}` : profile.taxId;
   setCity(profile, region, faker.helpers.arrayElement(region.cities));
 }
 
@@ -102,7 +105,8 @@ export function createProfile(settings: AutofillSettings): Profile {
     fullName: `${firstName} ${lastName}`,
     email: `${localPart}@${emailDomain}`,
     username: `${localPart}${pickInt(10, 99)}`,
-    password: `${faker.string.alphanumeric(10)}!${pickInt(10, 99)}`,
+    // The fixed prefix meets the upper, lower, digit and symbol rules most sign-up forms enforce.
+    password: `Aa1!${faker.string.alphanumeric(12)}`,
     jobTitle: faker.person.jobTitle(),
     age,
     dateOfBirth: birthDateFor(age),
@@ -112,6 +116,7 @@ export function createProfile(settings: AutofillSettings): Profile {
     website: `https://${domain}`,
     phone: "",
     taxId: "",
+    gstin: "",
     street: faker.location.streetAddress(),
     addressLine2: faker.location.secondaryAddress(),
     city: "",

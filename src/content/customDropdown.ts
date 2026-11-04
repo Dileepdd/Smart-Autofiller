@@ -2,7 +2,7 @@ import { DropdownMode } from "../shared/types";
 import { isInput, isVisible } from "./detector";
 import { Choice, isPlaceholder, pickChoice } from "./dropdown";
 import { waitFor } from "./waiting";
-import { writeValue } from "./writers";
+import { press, writeValue } from "./writers";
 
 const OPEN_TIMEOUT_MS = 800;
 const TYPEAHEAD_TIMEOUT_MS = 1200;
@@ -12,13 +12,6 @@ const MAX_VALUE_ANCESTORS = 3;
 const UNLABELLED_OPTIONS = ".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option:not(.ant-select-item-option-disabled)";
 
 type OptionChoice = Choice & { element: HTMLElement };
-
-/** Component libraries differ in which of these they listen to, so a real click's full sequence is sent. */
-function press(element: HTMLElement): void {
-  for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
-    element.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 }));
-  }
-}
 
 function listboxes(trigger: HTMLElement): Element[] {
   const root = trigger.getRootNode() as Document | ShadowRoot;
@@ -31,7 +24,7 @@ function listboxes(trigger: HTMLElement): Element[] {
 
 function openOptions(trigger: HTMLElement): OptionChoice[] {
   const usable = (options: HTMLElement[]): HTMLElement[] =>
-    options.filter((option) => option.getAttribute("aria-disabled") !== "true" && isVisible(option));
+    options.filter((option) => option.getAttribute("aria-disabled") !== "true" && isVisible(option) && !option.closest("a[href]"));
   const aria = usable(listboxes(trigger).flatMap((list) => Array.from(list.querySelectorAll<HTMLElement>("[role=option]"))));
   const options = aria.length ? aria : usable(Array.from(trigger.ownerDocument.querySelectorAll<HTMLElement>(UNLABELLED_OPTIONS)));
   return options

@@ -1,0 +1,45 @@
+<!doctype html>
+<html><body>
+<input type="search" id="search" placeholder="Search site">
+<form id="f" onsubmit="window.__submitted=true;return false">
+  <label for="a1">Email</label><input id="a1">
+  <label for="a2">Company Name</label><input id="a2">
+  <label for="a3">Company Website</label><input id="a3" type="url">
+  <label for="a4">Date of Birth</label><input id="a4" type="date">
+  <label for="a5">Birth date</label><input id="a5" placeholder="dd/mm/yyyy">
+  <label for="a6">Age</label><input id="a6" type="number" min="20" max="25">
+  <input id="a7" name="taxId">
+  <input id="a8" name="fullName">
+  <input id="a9" type="password" name="password"><input id="a10" type="password" name="confirmPassword">
+  <input id="ro" name="city" readonly value="locked">
+  <input id="dis" name="city" disabled>
+  <input id="hid" name="city" style="display:none">
+  <input id="off" name="city" style="position:absolute;left:-9999px">
+  <input id="keep" name="zip" value="KEEP">
+  <input id="t1" type="time"><input id="t2" type="month"><input id="t3" type="datetime-local"><input id="t4" type="week">
+  <input id="len" name="company" maxlength="5">
+  <input id="pat" name="zip" pattern="[0-9]{4}">
+  <input type="radio" name="g" id="r1" value="1"><input type="radio" name="g" id="r2" value="2">
+  <input type="checkbox" id="c1" name="news"><input type="checkbox" id="c2" name="terms" required>
+  <fieldset disabled><input id="fs" name="email"></fieldset>
+  <input id="card" autocomplete="cc-number">
+  <div id="ed" contenteditable="true" aria-label="Description"></div>
+  <button type="submit">Save</button>
+</form>
+<div id="host"></div>
+<iframe id="same" src="/frame.html" width="300" height="80"></iframe>
+<iframe id="cross" width="300" height="80"></iframe>
+<script>
+  const s = document.getElementById("host").attachShadow({ mode: "open" });
+  s.innerHTML = '<label for="sh">City</label><input id="sh">';
+  document.getElementById("cross").src = location.protocol + "//localhost:" + (Number(location.port) + 1) + "/frame.html";
+  window.__state = () => {
+    const out = {};
+    for (const el of document.querySelectorAll("input, textarea")) out[el.id] = el.type === "checkbox" || el.type === "radio" ? el.checked : el.value;
+    out.ed = document.getElementById("ed").textContent;
+    out.shadow = s.querySelector("input").value;
+    out.sameFrame = document.getElementById("same").contentDocument.querySelector("input").value;
+    return out;
+  };
+</script>
+</body></html>

@@ -1,0 +1,17 @@
+<!doctype html>
+<html><body>
+<form>
+  <div><label for="email">Email</label><input id="email"></div>
+  <div><label for="date">Joining Date</label><input id="date"></div>
+  <div><label for="code">City</label><input id="code"></div>
+</form>
+<script>
+  // Accepts no date format at all, like a picker that only takes calendar clicks.
+  const date = document.getElementById("date");
+  date.addEventListener("blur", () => { date.value = ""; });
+  // Rejects everything the moment it is written.
+  const code = document.getElementById("code");
+  code.addEventListener("input", () => { code.value = ""; });
+  window.__state = () => ({ email: document.getElementById("email").value });
+</script>
+</body></html>
