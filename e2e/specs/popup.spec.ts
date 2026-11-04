@@ -102,12 +102,73 @@ test.describe("the real extension", () => {
     expect((await pageState(page)).email).toBe("");
   });
 
+  test("one click on the toolbar icon fills the page by default", async ({ extension, open }) => {
+    const page = await open("simple");
+    await extension.useShippedDefaults();
+
+    const popup = await extension.clickToolbarIcon(page);
+    await popup.waitFor(`document.getElementById("status").textContent === "Page filled."`);
+    expect(await popup.text("countFilled")).toBe("3");
+    await popup.close();
+
+    expect((await pageState(page)).email).toContain("@example.com");
+  });
+
+  test("with single click off, opening the popup fills nothing", async ({ extension, open }) => {
+    const page = await open("simple");
+
+    const popup = await extension.clickToolbarIcon(page);
+    await page.waitForTimeout(500);
+    expect((await pageState(page)).email).toBe("");
+
+    await popup.fill();
+    await popup.close();
+    expect((await pageState(page)).email).not.toBe("");
+  });
+
+  test("Chrome registers the options page, which fills nothing", async ({ extension, open }) => {
+    const page = await open("simple");
+    await extension.useShippedDefaults();
+    const extensionPage = await extension.openPopupWithoutToolbar();
+    const optionsOpened = extension.context.waitForEvent("page", (candidate) => candidate.url().endsWith("/options.html"));
+
+    await extensionPage.evaluate("chrome.runtime.openOptionsPage()");
+    const options = await optionsOpened;
+    await options.waitForLoadState();
+    await extensionPage.close();
+
+    expect(await options.locator("#settingsView").isVisible()).toBe(true);
+    expect(await options.locator("#mainView").isVisible()).toBe(false);
+    expect(await options.locator("#backButton").isVisible()).toBe(false);
+    expect(await options.locator("#fillOnOpen").isChecked()).toBe(true);
+    await options.close();
+    expect((await pageState(page)).email).toBe("");
+  });
+
+  test("a setting changed on the options page reaches the popup", async ({ extension, open }) => {
+    const page = await open("simple");
+    const options = await extension.openOptions();
+    await options.fill("#emailDomain", "options.test");
+    await options.locator("#emailDomain").blur();
+    await options.locator("#saveState", { hasText: "Saved" }).waitFor();
+    await options.close();
+
+    const result = await fillThroughPopup(extension, page);
+
+    expect(result.status).toBe("Page filled.");
+    expect((await pageState(page)).email).toContain("@options.test");
+  });
+
   test("starts with the agreed defaults", async ({ extension, open }) => {
-    const popup = await extension.clickToolbarIcon(await open("simple"));
+    const page = await open("simple");
+    await extension.useShippedDefaults();
+    const popup = await extension.clickToolbarIcon(page);
+    await popup.waitFor(`!document.getElementById("fillButton").disabled`);
 
     expect(await popup.value("country")).toBe("IN");
     expect(await popup.value("dropdownMode")).toBe("first");
     expect(await popup.evaluate(`document.getElementById("fillExisting").checked`)).toBe(false);
+    expect(await popup.evaluate(`document.getElementById("fillOnOpen").checked`)).toBe(true);
     await popup.close();
   });
 

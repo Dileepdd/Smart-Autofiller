@@ -151,6 +151,13 @@ export class Extension {
     throw new Error("The popup did not open.");
   }
 
+  /** The options page Chrome links to from the extension's details and the icon's right-click menu. */
+  async openOptions(): Promise<Page> {
+    const page = await this.context.newPage();
+    await page.goto(`chrome-extension://${this.id}/options.html`);
+    return page;
+  }
+
   /** The popup page in an ordinary tab: same code and manifest, but no toolbar click, so no activeTab. */
   async openPopupWithoutToolbar(): Promise<Page> {
     const page = await this.context.newPage();
@@ -158,9 +165,20 @@ export class Extension {
     return page;
   }
 
+  /** Most tests set their rules before filling, so they turn off filling on open. */
   async clearSettings(): Promise<void> {
+    await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false } })");
+  }
+
+  /** A first-run user, with nothing saved. */
+  async useShippedDefaults(): Promise<void> {
+    await this.writeStorage("chrome.storage.local.clear()");
+  }
+
+  private async writeStorage(expression: string): Promise<void> {
     const page = await this.openPopupWithoutToolbar();
     await page.evaluate("chrome.storage.local.clear()");
+    await page.evaluate(expression);
     await page.close();
   }
 }

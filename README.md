@@ -22,7 +22,7 @@ The unpacked extension is generated in `dist/`.
 2. Enable **Developer mode**.
 3. Select **Load unpacked**.
 4. Choose this project's `dist` folder.
-5. Open any normal website, click the Smart Autofill icon, and click **Fill Entire Page**.
+5. Open any normal website and click the Smart Autofill icon. The page fills straight away.
 
 After changing source code, run `npm run build`, then click Reload on the extension card.
 
@@ -82,7 +82,12 @@ To add a field type, add it to `FieldKind` and `RULES` in `classifier.ts`. The c
 
 ## Settings
 
-Settings save automatically, persist in `chrome.storage.local` and apply on every site.
+Settings save automatically, persist in `chrome.storage.local` and apply on every site. There are two ways to reach them:
+
+- The sliders button in the popup.
+- The options page, which never fills anything: right-click the toolbar icon and choose **Options**, or open **Details** on `chrome://extensions` and choose **Extension options**.
+
+By default one click on the toolbar icon fills the page and shows the result. To change a setting without filling the current page, use the options page, or turn off **Fill when the toolbar icon is clicked**. With it off, click **Fill Entire Page** in the popup.
 
 | Setting | Default |
 |---|---|
@@ -95,6 +100,7 @@ Settings save automatically, persist in `chrome.storage.local` and apply on ever
 | Date format | `YYYY-MM-DD`; a text field's own placeholder, such as `dd/mm/yyyy`, takes priority |
 | Dropdowns | First valid option |
 | Replace existing values | Off |
+| Fill when the toolbar icon is clicked | On |
 
 Country sets location, phone and tax ID formats: EIN (US), PAN and GSTIN (India), VAT (UK), Business Number (Canada) and ABN (Australia).
 

@@ -3,6 +3,9 @@ import { AutofillSettings, DEFAULT_SETTINGS, FillResult } from "../shared/types"
 
 const SAVED_MESSAGE_MS = 1500;
 
+/** The same page doubles as Chrome's options page, where settings can be changed without filling anything. */
+const isOptionsPage = location.pathname.endsWith("/options.html");
+
 const byId = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Missing popup element: ${id}`);
@@ -44,7 +47,7 @@ function showProfile(): void {
   byId("profile").textContent = `${country.selectedOptions[0]?.text ?? ""} data, @${domain}`;
 }
 
-async function load(): Promise<void> {
+async function load(): Promise<AutofillSettings> {
   const settings = await getSettings();
   byId<HTMLInputElement>("emailDomain").value = settings.emailDomain;
   byId<HTMLInputElement>("ageMin").value = String(settings.ageMin);
@@ -54,11 +57,13 @@ async function load(): Promise<void> {
   byId<HTMLSelectElement>("domainSuffix").value = settings.domainSuffix;
   byId<HTMLSelectElement>("dropdownMode").value = settings.dropdownMode;
   byId<HTMLInputElement>("fillExisting").checked = settings.fillExisting;
+  byId<HTMLInputElement>("fillOnOpen").checked = settings.fillOnOpen;
   byId<HTMLSelectElement>("country").value = settings.country;
   byId<HTMLSelectElement>("phoneFormat").value = settings.phoneFormat;
   byId<HTMLSelectElement>("dateFormat").value = settings.dateFormat;
   byId<HTMLTextAreaElement>("customRules").value = formatCustomRules(settings.customRules);
   showProfile();
+  return settings;
 }
 
 function readSettings(): AutofillSettings {
@@ -75,6 +80,7 @@ function readSettings(): AutofillSettings {
     domainSuffix: byId<HTMLSelectElement>("domainSuffix").value,
     dropdownMode: byId<HTMLSelectElement>("dropdownMode").value as AutofillSettings["dropdownMode"],
     fillExisting: byId<HTMLInputElement>("fillExisting").checked,
+    fillOnOpen: byId<HTMLInputElement>("fillOnOpen").checked,
     country: byId<HTMLSelectElement>("country").value as AutofillSettings["country"],
     phoneFormat: byId<HTMLSelectElement>("phoneFormat").value as AutofillSettings["phoneFormat"],
     dateFormat: byId<HTMLSelectElement>("dateFormat").value as AutofillSettings["dateFormat"],
@@ -114,7 +120,7 @@ byId("backButton").addEventListener("click", () => showView("main"));
 byId("settingsForm").addEventListener("change", () => void saveForm());
 byId("settingsForm").addEventListener("submit", (event) => event.preventDefault());
 
-byId<HTMLButtonElement>("fillButton").addEventListener("click", async () => {
+async function fillActiveTab(): Promise<void> {
   const button = byId<HTMLButtonElement>("fillButton");
   button.disabled = true;
   showResult();
@@ -135,6 +141,15 @@ byId<HTMLButtonElement>("fillButton").addEventListener("click", async () => {
   } finally {
     button.disabled = false;
   }
-});
+}
 
-void load().catch(() => status("Could not load saved settings.", true));
+byId("fillButton").addEventListener("click", () => void fillActiveTab());
+
+if (isOptionsPage) {
+  document.body.classList.add("is-options");
+  showView("settings");
+}
+
+void load()
+  .then((settings) => { if (settings.fillOnOpen && !isOptionsPage) return fillActiveTab(); })
+  .catch(() => status("Could not load saved settings.", true));

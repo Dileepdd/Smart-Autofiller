@@ -26,6 +26,20 @@ test.describe("date pickers", () => {
     expect([year - 30, year - 31]).toContain(new Date(ant).getFullYear());
   });
 
+  test("no calendar is left open over the form", async ({ extension, open }) => {
+    const page = await open("dates");
+
+    await fillThroughPopup(extension, page);
+
+    const open_ = await page.evaluate(() => [
+      ".ant-picker-dropdown", ".react-datepicker-popper", ".flatpickr-calendar.open", ".el-picker__popper", ".MuiPickerPopper-root"
+    ].filter((selector) => [...document.querySelectorAll<HTMLElement>(selector)].some((element) => {
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== "hidden" && getComputedStyle(element).opacity !== "0";
+    })));
+    expect(open_).toEqual([]);
+  });
+
   test("no picker submits the surrounding form", async ({ extension, open }) => {
     const page = await open("dates");
 

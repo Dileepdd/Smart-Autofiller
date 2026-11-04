@@ -699,6 +699,18 @@ describe("fillPage date pickers", () => {
     expect(result).toMatchObject({ filled: 1, errors: 0 });
   });
 
+  it("closes calendars without pressing outside a modal", async () => {
+    render('<div id="modal" role="dialog"><label for="field">Date of Birth</label><input id="field"></div>');
+    const targets: EventTarget[] = [];
+    const record = (event: Event): void => { if (event.target) targets.push(event.target); };
+    document.addEventListener("mousedown", record);
+
+    await fillPage(settingsWith());
+    document.removeEventListener("mousedown", record);
+
+    expect(targets).toEqual([find<HTMLElement>("#modal")]);
+  });
+
   it("leaves an existing date alone", async () => {
     render('<div><label for="field">Date of Birth</label><input id="field" value="keep"></div>');
 

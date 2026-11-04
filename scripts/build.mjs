@@ -21,6 +21,7 @@ const jobs = [
 ];
 
 await cp("src/popup/popup.html", `${outdir}/popup.html`);
+await cp("src/popup/popup.html", `${outdir}/options.html`);
 await cp("src/popup/popup.css", `${outdir}/popup.css`);
 
 if (watch) {

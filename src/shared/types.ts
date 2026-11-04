@@ -18,6 +18,8 @@ export interface AutofillSettings {
   domainSuffix: string;
   dropdownMode: DropdownMode;
   fillExisting: boolean;
+  /** Fill as soon as the toolbar icon is clicked, instead of waiting for the Fill button. */
+  fillOnOpen: boolean;
   country: CountryCode;
   phoneFormat: PhoneFormat;
   dateFormat: DateFormat;
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   domainSuffix: ".com",
   dropdownMode: "first",
   fillExisting: false,
+  fillOnOpen: true,
   country: "IN",
   phoneFormat: "national",
   dateFormat: "YYYY-MM-DD",

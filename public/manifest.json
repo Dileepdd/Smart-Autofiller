@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "description": "Fill web forms with realistic, connected test data in one click. Runs locally; no API key required.",
   "permissions": ["activeTab", "scripting", "storage"],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "action": {
     "default_title": "Smart Autofill",
     "default_popup": "popup.html",
