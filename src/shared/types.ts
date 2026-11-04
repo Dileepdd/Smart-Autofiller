@@ -18,7 +18,7 @@ export interface AutofillSettings {
   domainSuffix: string;
   dropdownMode: DropdownMode;
   fillExisting: boolean;
-  /** Fill as soon as the toolbar icon is clicked, instead of waiting for the Fill button. */
+  /** Fill straight from the toolbar icon with no popup. Off, the icon opens the popup instead. */
   fillOnOpen: boolean;
   country: CountryCode;
   phoneFormat: PhoneFormat;
@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   experienceMax: 20,
   domainSuffix: ".com",
   dropdownMode: "first",
-  fillExisting: false,
+  fillExisting: true,
   fillOnOpen: true,
   country: "IN",
   phoneFormat: "national",

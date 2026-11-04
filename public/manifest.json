@@ -3,14 +3,16 @@
   "name": "Smart Autofill – QA Test Data",
   "version": "0.1.0",
   "description": "Fill web forms with realistic, connected test data in one click. Runs locally; no API key required.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
   },
   "action": {
     "default_title": "Smart Autofill",
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

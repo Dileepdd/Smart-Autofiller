@@ -4,8 +4,8 @@ import { DEFAULT_SETTINGS } from "../src/shared/types";
 import { settingsWith } from "./helpers";
 
 describe("DEFAULT_SETTINGS", () => {
-  it("defaults to India and preserves existing values", () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ country: "IN", fillExisting: false, fillOnOpen: true, dropdownMode: "first" });
+  it("defaults to India, filling on one click and replacing existing values", () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ country: "IN", fillExisting: true, fillOnOpen: true, dropdownMode: "first" });
   });
 });
 

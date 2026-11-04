@@ -76,6 +76,7 @@ const dropdownTargetsFor = (run: FillRun, element: HTMLElement, kind: FieldKind)
 };
 
 function fillSelect(run: FillRun, select: HTMLSelectElement, kind: FieldKind): void {
+  if (kind === "skip" && customValue(run, select) === undefined) return markSkipped(run, select);
   const choices = usableOptions(select).map(toChoice);
   const choice = pickChoice(choices, dropdownTargetsFor(run, select, kind), run.settings.dropdownMode);
   if (!choice) return markSkipped(run, select);

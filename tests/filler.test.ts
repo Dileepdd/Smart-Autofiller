@@ -804,6 +804,21 @@ describe("fillPage safety", () => {
     expect(submits).not.toHaveBeenCalled();
   });
 
+  it("does not change a site's workspace switcher or page size, even when replacing values", async () => {
+    render(`
+      <header><select id="workspace"><option>One</option><option>Two</option></select></header>
+      <div class="pagination"><select id="size"><option>10</option><option>20</option></select></div>
+    `);
+    find<HTMLSelectElement>("#workspace").value = "Two";
+    find<HTMLSelectElement>("#size").value = "20";
+
+    const result = await fillPage(settingsWith({ fillExisting: true }));
+
+    expect(find<HTMLSelectElement>("#workspace").value).toBe("Two");
+    expect(find<HTMLSelectElement>("#size").value).toBe("20");
+    expect(result).toMatchObject({ filled: 0, skipped: 2 });
+  });
+
   it("leaves card details, one-time codes and search boxes empty", async () => {
     render(`
       <div><input id="card" autocomplete="cc-number"></div>

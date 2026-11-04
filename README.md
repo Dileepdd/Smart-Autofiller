@@ -22,7 +22,7 @@ The unpacked extension is generated in `dist/`.
 2. Enable **Developer mode**.
 3. Select **Load unpacked**.
 4. Choose this project's `dist` folder.
-5. Open any normal website and click the Smart Autofill icon. The page fills straight away.
+5. Open any normal website and click the Smart Autofill icon. The page fills straight away, with no popup.
 
 After changing source code, run `npm run build`, then click Reload on the extension card.
 
@@ -52,7 +52,7 @@ Then run them:
 npm run test:e2e
 ```
 
-Each test loads the unmodified `dist/` into Chromium, runs the real toolbar action, and presses **Fill Entire Page** in the real popup. The toolbar action comes from Chrome's `Extensions.triggerAction` DevTools command, so `activeTab` is granted the same way a click grants it, with no added permissions. Results are read from each framework's own state, not just the DOM.
+Each test loads the unmodified `dist/` into Chromium and runs the real toolbar action, then either checks the one-click result on the icon or presses **Fill Entire Page** in the real popup. The toolbar action comes from Chrome's `Extensions.triggerAction` DevTools command, so `activeTab` is granted the same way a click grants it, with no added permissions. Results are read from each framework's own state, not just the DOM.
 
 A browser window opens during the run, because popups need a real toolbar. On a machine without a display, run `xvfb-run npm run test:e2e`. Keep the window undisturbed: a popup closes when it loses focus.
 
@@ -84,10 +84,12 @@ To add a field type, add it to `FieldKind` and `RULES` in `classifier.ts`. The c
 
 Settings save automatically, persist in `chrome.storage.local` and apply on every site. There are two ways to reach them:
 
-- The sliders button in the popup.
-- The options page, which never fills anything: right-click the toolbar icon and choose **Options**, or open **Details** on `chrome://extensions` and choose **Extension options**.
+- Right-click the toolbar icon. **Fill on icon click** and **Replace existing values** are ticks in that menu, and **Options** opens every setting.
+- Open **Details** on `chrome://extensions` and choose **Extension options**.
 
-By default one click on the toolbar icon fills the page and shows the result. To change a setting without filling the current page, use the options page, or turn off **Fill when the toolbar icon is clicked**. With it off, click **Fill Entire Page** in the popup.
+By default one click on the toolbar icon fills the page, with no popup. The icon then shows how many fields were filled, or `!` if something needs attention. Hover over the icon for details.
+
+With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page**, the result counts and the settings.
 
 | Setting | Default |
 |---|---|
@@ -99,8 +101,8 @@ By default one click on the toolbar icon fills the page and shows the result. To
 | Phone format | National |
 | Date format | `YYYY-MM-DD`; a text field's own placeholder, such as `dd/mm/yyyy`, takes priority |
 | Dropdowns | First valid option |
-| Replace existing values | Off |
-| Fill when the toolbar icon is clicked | On |
+| Replace existing values | On |
+| Fill on icon click | On |
 
 Country sets location, phone and tax ID formats: EIN (US), PAN and GSTIN (India), VAT (UK), Business Number (Canada) and ABN (Australia).
 
@@ -112,8 +114,9 @@ Custom rules take one `keyword = value` per line, for example `employee id = EMP
 
 - Disabled, readonly and `aria-readonly` fields, and fields in a disabled `fieldset`. flatpickr is the one exception: its input is always readonly, so its calendar is used.
 - Hidden fields: `display: none`, `visibility: hidden`, zero-size, off-screen, `inert` or under `aria-hidden`.
-- Fields that already have a value, unless **Replace existing values** is on. Ticked checkboxes and chosen radios are never changed.
+- Fields that already have a value, when **Replace existing values** is off. Ticked checkboxes and chosen radios are never changed.
 - Search boxes, payment card fields, one-time codes and captchas. A custom rule can override this.
+- Site controls: anything in pagination, and anything in a page header, navigation bar or footer unless it is inside a form or dialog.
 - File, color and range inputs.
 
 ## Safety
@@ -121,11 +124,11 @@ Custom rules take one `keyword = value` per line, for example `employee id = EMP
 - It never submits a form. It never presses Enter.
 - In custom dropdowns and calendars it only clicks the trigger and the option or day elements. A trigger that would submit a form or follow a link receives no click.
 - If a page's own script tries to submit during a fill, the submission is stopped and reported. This cannot catch `form.submit()`, which fires no event, or forms inside shadow roots and iframes.
-- It makes no network requests and asks only for `activeTab`, `scripting` and `storage`.
+- It makes no network requests and asks only for `activeTab`, `contextMenus`, `scripting` and `storage`.
 - It only reaches a page after you click the toolbar icon on that tab.
 - Generated values, including passwords, never appear in the report.
 
-Filling fires the page's own `change` handlers, as typing would. A page that acts on those handlers will still act, so use this on test environments.
+Filling fires the page's own `change` handlers, as typing would. A page that acts on those handlers will still act, so use this on test environments. **Replace existing values** is on by default, so a click overwrites what is in a form, including saved passwords. A site control built from plain `div`s with no recognisable header or navigation markup cannot be told apart from a form field.
 
 ## Tested compatibility
 

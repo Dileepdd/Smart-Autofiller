@@ -1,0 +1,21 @@
+<!doctype html>
+<html><body>
+<header>
+  <label for="workspace">Company</label>
+  <select id="workspace"><option>Q1 Tech</option><option>Other Company</option></select>
+</header>
+<nav><input id="jump" name="city"></nav>
+<main>
+  <input id="search" placeholder="Search...">
+  <table><tr><td>Row</td></tr></table>
+  <div class="ant-pagination">
+    <select id="pageSize"><option>10 / page</option><option>20 / page</option></select>
+  </div>
+  <form>
+    <header><label for="title">City</label><input id="title"></header>
+  </form>
+</main>
+<script>
+  window.__state = () => Object.fromEntries([...document.querySelectorAll("input, select")].map((field) => [field.id, field.value]));
+</script>
+</body></html>

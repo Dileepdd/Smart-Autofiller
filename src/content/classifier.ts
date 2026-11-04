@@ -96,12 +96,19 @@ function autocompleteKind(element: HTMLElement): FieldKind | undefined {
 const isSearchField = (element: HTMLElement, type: string): boolean =>
   type === "search" || element.getAttribute("role") === "searchbox" || element.closest("[role=search]") !== null;
 
+/** Site navigation, not form data: a workspace switcher in a header, or a page size selector. */
+const SITE_CHROME = "header, nav, footer, [role=banner], [role=navigation], [role=contentinfo], [class*=navbar], [class*=topbar], [class*=layout-header]";
+
+const isPageControl = (element: HTMLElement): boolean =>
+  element.closest("[class*=pagination]") !== null ||
+  (element.closest(SITE_CHROME) !== null && element.closest("form, dialog, [role=dialog]") === null);
+
 const inputType = (element: HTMLElement): string =>
   element.tagName === "INPUT" ? (element.getAttribute("type") ?? "text").toLowerCase() : "";
 
 export function classifyField(element: HTMLElement): FieldKind {
   const type = inputType(element);
-  if (isSearchField(element, type)) return "skip";
+  if (isSearchField(element, type) || isPageControl(element)) return "skip";
 
   const scores = new Map<FieldKind, number>();
   const vote = (kind: FieldKind | undefined, weight: number): void => {

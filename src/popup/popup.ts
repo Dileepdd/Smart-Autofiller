@@ -1,9 +1,10 @@
+import { fillErrorMessage, fillTab } from "../shared/fill";
 import { formatCustomRules, getSettings, parseCustomRules, saveSettings, validateSettings } from "../shared/settings";
 import { AutofillSettings, DEFAULT_SETTINGS, FillResult } from "../shared/types";
 
 const SAVED_MESSAGE_MS = 1500;
 
-/** The same page doubles as Chrome's options page, where settings can be changed without filling anything. */
+/** The same page doubles as Chrome's options page, which shows only the settings. */
 const isOptionsPage = location.pathname.endsWith("/options.html");
 
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -47,7 +48,7 @@ function showProfile(): void {
   byId("profile").textContent = `${country.selectedOptions[0]?.text ?? ""} data, @${domain}`;
 }
 
-async function load(): Promise<AutofillSettings> {
+async function load(): Promise<void> {
   const settings = await getSettings();
   byId<HTMLInputElement>("emailDomain").value = settings.emailDomain;
   byId<HTMLInputElement>("ageMin").value = String(settings.ageMin);
@@ -63,7 +64,6 @@ async function load(): Promise<AutofillSettings> {
   byId<HTMLSelectElement>("dateFormat").value = settings.dateFormat;
   byId<HTMLTextAreaElement>("customRules").value = formatCustomRules(settings.customRules);
   showProfile();
-  return settings;
 }
 
 function readSettings(): AutofillSettings {
@@ -130,14 +130,9 @@ async function fillActiveTab(): Promise<void> {
     await saveSettings(settings);
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error("No active tab found.");
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-    const response = await chrome.tabs.sendMessage(tab.id, { type: "SMART_AUTOFILL_FILL", settings }) as FillResult | undefined;
-    if (!response) throw new Error("The page did not respond. Try reloading it.");
-    showResult(response);
+    showResult(await fillTab(tab.id, settings));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not fill this page.";
-    const blocked = /Cannot access|cannot be scripted/i.test(message);
-    status(blocked ? "Chrome does not allow extensions on this page." : message, true);
+    status(fillErrorMessage(error), true);
   } finally {
     button.disabled = false;
   }
@@ -150,6 +145,4 @@ if (isOptionsPage) {
   showView("settings");
 }
 
-void load()
-  .then((settings) => { if (settings.fillOnOpen && !isOptionsPage) return fillActiveTab(); })
-  .catch(() => status("Could not load saved settings.", true));
+void load().catch(() => status("Could not load saved settings.", true));

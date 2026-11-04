@@ -146,11 +146,7 @@ export class Extension {
 
   /** Runs the toolbar button for this page's tab, which is what grants activeTab, and opens the real popup. */
   async clickToolbarIcon(page: Page): Promise<Popup> {
-    await page.bringToFront();
-    const { targetInfos } = await this.browserSession.send("Target.getTargets", { filter: [{ type: "tab" }] } as never);
-    const tab = targetInfos.find((target) => target.url === page.url());
-    if (!tab) throw new Error(`No tab found for ${page.url()}`);
-    await this.browserSession.send("Extensions.triggerAction" as never, { id: this.id, targetId: tab.targetId } as never);
+    await this.triggerAction(page);
 
     const deadline = Date.now() + POPUP_TIMEOUT_MS;
     while (Date.now() < deadline) {
@@ -159,6 +155,18 @@ export class Extension {
       await sleep(POLL_MS);
     }
     throw new Error("The popup did not open.");
+  }
+
+  private async triggerAction(page: Page): Promise<void> {
+    await page.bringToFront();
+    const { targetInfos } = await this.browserSession.send("Target.getTargets", { filter: [{ type: "tab" }] } as never);
+    const tab = targetInfos.find((target) => target.url === page.url());
+    if (!tab) throw new Error(`No tab found for ${page.url()}`);
+    await this.browserSession.send("Extensions.triggerAction" as never, { id: this.id, targetId: tab.targetId } as never);
+  }
+
+  async isPopupOpen(): Promise<boolean> {
+    return (await this.popupTarget()) !== undefined;
   }
 
   private async popupTarget(): Promise<{ url: string; webSocketDebuggerUrl: string } | undefined> {
@@ -180,21 +188,50 @@ export class Extension {
     return page;
   }
 
-  /** Most tests set their rules before filling, so they turn off filling on open. */
+  /** Most tests set rules in the popup and check that values are kept, so they use the popup mode. */
   async clearSettings(): Promise<void> {
-    await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false } })");
+    await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false, fillExisting: false } })", true);
   }
 
   /** A first-run user, with nothing saved. */
   async useShippedDefaults(): Promise<void> {
-    await this.writeStorage("chrome.storage.local.clear()");
+    await this.writeStorage("Promise.resolve()", false);
   }
 
-  private async writeStorage(expression: string): Promise<void> {
+  /** The background worker applies settings asynchronously, so this waits until the toolbar reflects them. */
+  private async writeStorage(expression: string, popupExpected: boolean): Promise<void> {
     const page = await this.openPopupWithoutToolbar();
     await page.evaluate("chrome.storage.local.clear()");
     await page.evaluate(expression);
+    await page.waitForFunction(`chrome.action.getPopup({}).then((popup) => (popup !== "") === ${popupExpected})`);
     await page.close();
+  }
+
+  /** Runs the toolbar button where no popup is expected. */
+  async clickToolbarIconWithoutPopup(page: Page): Promise<void> {
+    await this.triggerAction(page);
+  }
+
+  /** The badge and tooltip Chrome shows on the icon for whichever tab has one. */
+  async iconState(): Promise<{ badge: string; title: string }> {
+    const page = await this.openPopupWithoutToolbar();
+    const read = `(async () => {
+      for (const { id: tabId } of await chrome.tabs.query({})) {
+        const badge = await chrome.action.getBadgeText({ tabId });
+        if (badge && badge !== "…") return { badge, title: await chrome.action.getTitle({ tabId }) };
+      }
+      return undefined;
+    })()`;
+    const deadline = Date.now() + POPUP_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      const state = await page.evaluate(read) as { badge: string; title: string } | undefined;
+      if (state) {
+        await page.close();
+        return state;
+      }
+      await sleep(POLL_MS);
+    }
+    throw new Error("The icon never showed a result.");
   }
 }
 

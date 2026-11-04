@@ -196,6 +196,26 @@ describe("classifyField fields left alone", () => {
   });
 });
 
+describe("classifyField page controls", () => {
+  it.each([
+    ['<header><select id="field"><option>Q1 Tech</option></select></header>'],
+    ['<nav><input id="field" name="city"></nav>'],
+    ['<div role="banner"><input id="field" name="city"></div>'],
+    ['<div class="ant-layout-header"><select id="field"></select></div>'],
+    ['<div class="ant-pagination-options"><select id="field"></select></div>'],
+    ['<form><div class="pagination"><select id="field"></select></div></form>']
+  ])("skips %s", (html) => {
+    expect(classifyMarkup(html)).toBe("skip");
+  });
+
+  it.each([
+    ['<form><header><input id="field" name="city"></header></form>'],
+    ['<div role="dialog"><header><input id="field" name="city"></header></div>']
+  ])("still fills a form's own header in %s", (html) => {
+    expect(classifyMarkup(html)).toBe("city");
+  });
+});
+
 describe("classifyField context", () => {
   it("reads a wrapping label", () => {
     expect(classifyMarkup('<label>Full Name <input id="field"></label>')).toBe("fullName");

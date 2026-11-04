@@ -8,7 +8,7 @@ test.describe("the real extension", () => {
     const built = JSON.parse(await readFile(join(DIST, "manifest.json"), "utf8"));
     const source = JSON.parse(await readFile(join(DIST, "../public/manifest.json"), "utf8"));
     expect(built).toEqual(source);
-    expect(built.permissions).toEqual(["activeTab", "scripting", "storage"]);
+    expect(built.permissions).toEqual(["activeTab", "contextMenus", "scripting", "storage"]);
     expect(built.host_permissions).toBeUndefined();
   });
 
@@ -102,16 +102,67 @@ test.describe("the real extension", () => {
     expect((await pageState(page)).email).toBe("");
   });
 
-  test("one click on the toolbar icon fills the page by default", async ({ extension, open }) => {
+  test("one click on the icon fills the page with no popup, and shows the count on the icon", async ({ extension, open }) => {
     const page = await open("simple");
     await extension.useShippedDefaults();
 
-    const popup = await extension.clickToolbarIcon(page);
-    await popup.waitFor(`document.getElementById("status").textContent === "Page filled."`);
-    expect(await popup.text("countFilled")).toBe("3");
-    await popup.close();
+    await extension.clickToolbarIconWithoutPopup(page);
+    await page.waitForFunction("window.__state().city !== ''");
 
     expect((await pageState(page)).email).toContain("@example.com");
+    const icon = await extension.iconState();
+    expect(icon.badge).toBe("3");
+    expect(icon.title).toBe("Smart Autofill: 3 filled, 0 skipped, 0 need attention");
+    expect(await extension.isPopupOpen()).toBe(false);
+  });
+
+  test("clicking again replaces values by default", async ({ extension, open }) => {
+    const page = await open("simple");
+    await extension.useShippedDefaults();
+    await extension.clickToolbarIconWithoutPopup(page);
+    await extension.iconState();
+    const { email } = await pageState(page);
+
+    await extension.clickToolbarIconWithoutPopup(page);
+
+    await page.waitForFunction((previous) => (window as any).__state().email !== previous, email);
+  });
+
+  test("the icon flags fields that could not be filled", async ({ extension, open }) => {
+    const page = await open("rejecting");
+    await extension.useShippedDefaults();
+
+    await extension.clickToolbarIconWithoutPopup(page);
+
+    const icon = await extension.iconState();
+    expect(icon.badge).toBe("!");
+    expect(icon.title).toContain("Unsupported date picker");
+  });
+
+  test("the icon explains a page Chrome does not allow", async ({ extension, open }) => {
+    const page = await open("simple");
+    await extension.useShippedDefaults();
+    await page.goto("chrome://version");
+
+    await extension.clickToolbarIconWithoutPopup(page);
+
+    const icon = await extension.iconState();
+    expect(icon.badge).toBe("!");
+    expect(icon.title).toContain("Chrome does not allow extensions on this page.");
+  });
+
+  test("turning one-click filling off in the options page brings the popup back", async ({ extension, open }) => {
+    const page = await open("simple");
+    await extension.useShippedDefaults();
+    const options = await extension.openOptions();
+    await options.uncheck("#fillOnOpen");
+    await options.waitForFunction("chrome.action.getPopup({}).then((popup) => popup !== '')");
+    await options.close();
+
+    const popup = await extension.clickToolbarIcon(page);
+    await popup.close();
+
+    expect((await pageState(page)).email).toBe("");
   });
 
   test("with single click off, opening the popup fills nothing", async ({ extension, open }) => {
@@ -160,16 +211,16 @@ test.describe("the real extension", () => {
   });
 
   test("starts with the agreed defaults", async ({ extension, open }) => {
-    const page = await open("simple");
+    await open("simple");
     await extension.useShippedDefaults();
-    const popup = await extension.clickToolbarIcon(page);
-    await popup.waitFor(`!document.getElementById("fillButton").disabled`);
+    const options = await extension.openOptions();
+    await options.waitForFunction("document.getElementById('emailDomain').value !== ''");
 
-    expect(await popup.value("country")).toBe("IN");
-    expect(await popup.value("dropdownMode")).toBe("first");
-    expect(await popup.evaluate(`document.getElementById("fillExisting").checked`)).toBe(false);
-    expect(await popup.evaluate(`document.getElementById("fillOnOpen").checked`)).toBe(true);
-    await popup.close();
+    expect(await options.inputValue("#country")).toBe("IN");
+    expect(await options.inputValue("#dropdownMode")).toBe("first");
+    expect(await options.isChecked("#fillExisting")).toBe(true);
+    expect(await options.isChecked("#fillOnOpen")).toBe(true);
+    await options.close();
   });
 
   test("settings persist and apply on a different site", async ({ extension, open }) => {

@@ -17,6 +17,7 @@ const common = {
 
 const jobs = [
   { entryPoints: ["src/popup/popup.ts"], outfile: `${outdir}/popup.js`, format: "iife", ...common },
+  { entryPoints: ["src/background/index.ts"], outfile: `${outdir}/background.js`, format: "iife", ...common },
   { entryPoints: ["src/content/index.ts"], outfile: `${outdir}/content.js`, format: "iife", ...common }
 ];
 

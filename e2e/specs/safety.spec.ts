@@ -49,6 +49,16 @@ test.describe("safety", () => {
     expect(state.ro).toBe("locked");
   });
 
+  test("leaves site navigation and page size alone, even when replacing values", async ({ extension, open }) => {
+    const page = await open("listing");
+
+    const result = await fillThroughPopup(extension, page, { fillExisting: true });
+
+    expect(await pageState(page)).toMatchObject({ workspace: "Q1 Tech", jump: "", search: "", pageSize: "10 / page" });
+    expect((await pageState(page)).title).not.toBe("");
+    expect(result).toMatchObject({ filled: 1, errors: 0 });
+  });
+
   test("handles a large form quickly", async ({ extension, open }) => {
     const page = await open("big");
     const started = Date.now();

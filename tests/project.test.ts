@@ -12,10 +12,14 @@ describe("manifest", () => {
   const manifest = JSON.parse(readFileSync("public/manifest.json", "utf8"));
 
   it("asks for no more access than one click needs", () => {
-    expect(manifest.permissions).toEqual(["activeTab", "scripting", "storage"]);
+    expect(manifest.permissions).toEqual(["activeTab", "contextMenus", "scripting", "storage"]);
     expect(manifest.host_permissions).toBeUndefined();
     expect(manifest.optional_host_permissions).toBeUndefined();
     expect(manifest.content_scripts).toBeUndefined();
+  });
+
+  it("has no default popup, so a first click fills", () => {
+    expect(manifest.action.default_popup).toBeUndefined();
   });
 });
 
