@@ -3,7 +3,7 @@ import { customRuleValue, dateCandidates, generateValue, isDateKind, pickDate } 
 import { AutofillSettings, FillResult } from "../shared/types";
 import { classifyField, FieldKind, getFieldDescription } from "./classifier";
 import { comboboxHasValue, fillCombobox } from "./customDropdown";
-import { closeOpenPickers, isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePicker";
+import { isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePicker";
 import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isInput, isSelect, isVisible } from "./detector";
 import { hasSelection, pickChoice, toChoice, usableOptions } from "./dropdown";
 import { delay, waitFor } from "./waiting";
@@ -162,9 +162,7 @@ function fillChoiceGroup(run: FillRun, element: HTMLInputElement): void {
 
 async function fillTextDate(run: FillRun, element: HTMLInputElement, kind: "dateOfBirth" | "date" | "futureDate"): Promise<void> {
   const candidates = dateCandidates(pickDate(kind, run.profile), run.settings, element);
-  const accepted = await writeFirstAcceptedDate(element, candidates);
-  closeOpenPickers(element);
-  if (!accepted) return markUnsupported(run, element, "Unsupported date picker");
+  if (!(await writeFirstAcceptedDate(element, candidates))) return markUnsupported(run, element, "Unsupported date picker");
   run.written.push(element);
   markFilled(run, element);
 }
@@ -173,9 +171,7 @@ async function fillFlatpickr(run: FillRun, element: HTMLInputElement): Promise<v
   if (!run.settings.fillExisting && element.value.trim() !== "") return markSkipped(run, element);
   const kind = classifyField(element);
   const date = pickDate(isDateKind(kind) ? kind : "date", run.profile);
-  const picked = await pickFlatpickrDate(element, date);
-  closeOpenPickers(element);
-  if (picked) return markFilled(run, element);
+  if (await pickFlatpickrDate(element, date)) return markFilled(run, element);
   markUnsupported(run, element, "Unsupported date picker");
 }
 

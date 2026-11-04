@@ -18,17 +18,6 @@ export async function writeFirstAcceptedDate(input: HTMLInputElement, candidates
   return false;
 }
 
-/**
- * Pickers close on an outside press. This one lands on the surrounding form or dialog, which
- * cannot activate anything, and stays inside a modal so the modal does not close as well.
- */
-export function closeOpenPickers(input: HTMLElement): void {
-  const target = input.closest<HTMLElement>("form, dialog, [role=dialog]") ?? input.ownerDocument.body;
-  for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
-    target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 }));
-  }
-}
-
 export const isFlatpickr = (element: HTMLElement): boolean => element.matches("input.flatpickr-input");
 
 /**

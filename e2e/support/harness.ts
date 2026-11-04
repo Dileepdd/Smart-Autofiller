@@ -7,6 +7,7 @@ import { DIST, fixtureUrl } from "./paths";
 
 const POLL_MS = 50;
 const POPUP_TIMEOUT_MS = 5000;
+const CALL_TIMEOUT_MS = 10_000;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -31,7 +32,7 @@ export class Popup {
   private nextId = 1;
   private readonly pending = new Map<number, (message: any) => void>();
 
-  private constructor(private readonly socket: WebSocket) {
+  private constructor(private readonly socket: WebSocket, private readonly isOpen: () => Promise<boolean>) {
     socket.onmessage = ({ data }) => {
       const message = JSON.parse(String(data));
       this.pending.get(message.id)?.(message);
@@ -39,18 +40,22 @@ export class Popup {
     };
   }
 
-  static async connect(url: string): Promise<Popup> {
+  static async connect(url: string, isOpen: () => Promise<boolean>): Promise<Popup> {
     const socket = new WebSocket(url);
     await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
-    const popup = new Popup(socket);
+    const popup = new Popup(socket, isOpen);
     await popup.waitFor(`document.readyState === "complete" && document.getElementById("profile").textContent !== ""`);
     return popup;
   }
 
   private send(method: string, params: object = {}): Promise<any> {
     const id = this.nextId++;
-    return new Promise((resolve) => {
-      this.pending.set(id, resolve);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`No reply to ${method} ${JSON.stringify(params).slice(0, 120)}`));
+      }, CALL_TIMEOUT_MS);
+      this.pending.set(id, (message) => { clearTimeout(timer); resolve(message); });
       this.socket.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -119,9 +124,15 @@ export class Popup {
     })()`);
   }
 
+  /** Waits until Chrome has really closed it, because a click while it is closing would toggle or reuse it. */
   async close(): Promise<void> {
-    await this.send("Page.close").catch(() => undefined);
+    await this.evaluate("window.close()").catch(() => undefined);
     this.socket.close();
+    const deadline = Date.now() + POPUP_TIMEOUT_MS;
+    while (await this.isOpen()) {
+      if (Date.now() > deadline) throw new Error("The popup did not close.");
+      await sleep(POLL_MS);
+    }
   }
 }
 
@@ -143,12 +154,16 @@ export class Extension {
 
     const deadline = Date.now() + POPUP_TIMEOUT_MS;
     while (Date.now() < deadline) {
-      const targets = await (await fetch(`http://127.0.0.1:${this.debuggingPort}/json`)).json() as Array<{ url: string; webSocketDebuggerUrl: string }>;
-      const popup = targets.find((target) => target.url === `chrome-extension://${this.id}/popup.html`);
-      if (popup) return Popup.connect(popup.webSocketDebuggerUrl);
+      const popup = await this.popupTarget();
+      if (popup) return Popup.connect(popup.webSocketDebuggerUrl, async () => (await this.popupTarget()) !== undefined);
       await sleep(POLL_MS);
     }
     throw new Error("The popup did not open.");
+  }
+
+  private async popupTarget(): Promise<{ url: string; webSocketDebuggerUrl: string } | undefined> {
+    const targets = await (await fetch(`http://127.0.0.1:${this.debuggingPort}/json`)).json() as Array<{ url: string; webSocketDebuggerUrl: string }>;
+    return targets.find((target) => target.url === `chrome-extension://${this.id}/popup.html`);
   }
 
   /** The options page Chrome links to from the extension's details and the icon's right-click menu. */
