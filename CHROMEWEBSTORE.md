@@ -11,10 +11,6 @@ Everything needed for the Developer Dashboard, in the order the dashboard asks f
 - [ ] **Version.** The manifest says `0.1.0`. Change it if you want the first release to be `1.0.0`.
 - [ ] **Project licence.** The repository has no licence of its own, which is fine for a closed-source listing.
 
-**Images**
-
-- [ ] Retake the screenshots. They show the settings from before the test data modes were added.
-
 **Your details**
 
 - [x] Add the publisher name, location and contact email to `PRIVACY.md`.
@@ -116,14 +112,16 @@ Some sites use forms that can't be reached, such as cross-origin iframes, and Ch
 
 ## Images
 
-All files are in `store/`.
+All files are in `store/`, except the icon.
 
 | Dashboard field | File | Size |
 |---|---|---|
-| Store icon | Taken from the zip (`icons/icon-128.png`) | 128×128 |
+| Store icon | `public/icons/icon-128.png` | 128×128 |
 | Screenshot 1 | `screenshots/1-fill-form.png` | 1280×800 |
-| Screenshot 2 | `screenshots/2-settings.png` | 1280×800 |
-| Screenshot 3 | `screenshots/3-region-behavior.png` | 1280×800 |
+| Screenshot 2 | `screenshots/2-test-modes.png` | 1280×800 |
+| Screenshot 3 | `screenshots/3-field-menu.png` | 1280×800 |
+| Screenshot 4 | `screenshots/4-settings.png` | 1280×800 |
+| Screenshot 5 | `screenshots/5-connected-data.png` | 1280×800 |
 | Small promo tile | `promo-small-440x280.png` | 440×280 |
 | Marquee promo tile | `promo-marquee-1400x560.png` | 1400×560 |
 
