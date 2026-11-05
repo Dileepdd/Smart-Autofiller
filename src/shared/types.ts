@@ -11,6 +11,16 @@ export type TextMode = "realistic" | "random";
 export type AddressFormat = "standard" | "international";
 export type NameRegion = CountryCode | "country";
 export type CurrencySetting = "auto" | "INR" | "USD" | "GBP" | "CAD" | "AUD";
+export type DataMode = "valid" | "invalid" | "minimum" | "maximum" | "edge";
+
+/** The badge stays on the toolbar icon, so nobody tests with bad data by accident. */
+export const DATA_MODES: Record<DataMode, { label: string; badge: string }> = {
+  valid: { label: "Valid data", badge: "" },
+  invalid: { label: "Invalid data", badge: "INV" },
+  minimum: { label: "Minimum limits", badge: "MIN" },
+  maximum: { label: "Maximum limits", badge: "MAX" },
+  edge: { label: "Edge cases", badge: "EDGE" }
+};
 
 /** Fills any field whose description contains `match`. `value` is a template, see template.ts. */
 export interface CustomRule {
@@ -63,6 +73,9 @@ export interface AutofillSettings {
   invoiceIdPattern: string;
 
   // Filling behavior
+  /** What text and number fields receive. Dropdowns and choices stay valid so a form stays usable. */
+  dataMode: DataMode;
+  requiredOnly: boolean;
   dropdownMode: SelectionMode;
   radioMode: SelectionMode;
   multiSelectMode: MultiSelectMode;
@@ -82,6 +95,8 @@ export interface AutofillSettings {
   // Advanced
   highlightFilled: boolean;
   detailedReport: boolean;
+  /** Adds injection strings to the field menu. Off by default, for authorised testing only. */
+  showSecurityValues: boolean;
   reuseProfile: boolean;
   /** Fixes the generated data while reuseProfile is on. */
   profileSeed: number;
@@ -125,6 +140,8 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   customerIdPattern: "CUST-{number:10000-99999}",
   invoiceIdPattern: "INV-{number:10000-99999}",
 
+  dataMode: "valid",
+  requiredOnly: false,
   dropdownMode: "match",
   radioMode: "match",
   multiSelectMode: "first",
@@ -141,6 +158,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
 
   highlightFilled: false,
   detailedReport: false,
+  showSecurityValues: false,
   reuseProfile: false,
   profileSeed: 0
 };
@@ -179,4 +197,15 @@ export interface UndoResult {
   restored: number;
   /** Fields changed by the fill that cannot be put back safely, such as custom dropdowns. */
   notRestored: number;
+}
+
+export interface ClearResult {
+  cleared: number;
+  /** Fields holding a value with no safe way to empty them, such as a selected radio button. */
+  notCleared: number;
+}
+
+export interface FieldResult {
+  filled: boolean;
+  message: string;
 }

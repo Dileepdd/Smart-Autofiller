@@ -15,6 +15,7 @@ const CHOICES: Partial<Record<keyof AutofillSettings, readonly unknown[]>> = {
   addressFormat: ["standard", "international"],
   textMode: ["realistic", "random"],
   decimalPrecision: [0, 2, 4],
+  dataMode: ["valid", "invalid", "minimum", "maximum", "edge"],
   dropdownMode: ["match", "first", "random"],
   radioMode: ["match", "first", "random"],
   multiSelectMode: ["first", "random", "multiple"],

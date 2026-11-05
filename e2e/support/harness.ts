@@ -268,6 +268,34 @@ export class Extension {
     throw new Error("The icon never showed a result.");
   }
 
+  /** Saves settings over the defaults, leaving one-click filling on. */
+  async useSettings(settings: object): Promise<void> {
+    await this.writeStorage(`chrome.storage.local.set({ smartAutofillSettings: ${JSON.stringify(settings)} })`, false);
+  }
+
+  /** The tooltip on a tab that has no result of its own, read from the worker. */
+  async allTabsTitle(): Promise<string> {
+    return await (await this.worker()).evaluate("chrome.action.getTitle({})") as string;
+  }
+
+  /** The badge on a tab that has no result of its own, read from the worker. */
+  async allTabsBadge(): Promise<string> {
+    return await (await this.worker()).evaluate("chrome.action.getBadgeText({})") as string;
+  }
+
+  /**
+   * Sends the page what a right-click menu item sends. Real menus cannot be opened from automation,
+   * so this needs activeTab from an earlier toolbar action.
+   */
+  async sendToPage(page: Page, message: object): Promise<any> {
+    const expression = `(async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      return chrome.tabs.sendMessage(tab.id, ${JSON.stringify(message)});
+    })()`;
+    await page.bringToFront();
+    return (await this.worker()).evaluate(expression);
+  }
+
   private async worker(): Promise<Worker> {
     const isOurs = (worker: Worker): boolean => worker.url().startsWith(`chrome-extension://${this.id}/`);
     return this.context.serviceWorkers().find(isOurs) ?? this.context.waitForEvent("serviceworker", isOurs);

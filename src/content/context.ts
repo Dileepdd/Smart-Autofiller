@@ -106,6 +106,21 @@ export function formatHint(element: HTMLElement): string | undefined {
   return texts.map(hintedFormat).find(Boolean);
 }
 
+const REQUIRED_MARK = /\*\s*$|\(required\)/i;
+
+function inRequiredGroup(element: HTMLElement): boolean {
+  const name = element.getAttribute("name");
+  if (element.getAttribute("type") !== "radio" || !name) return false;
+  return queryRoot(element).querySelector(`input[type=radio][name="${CSS.escape(name)}"][required]`) !== null;
+}
+
+/** Many forms only mark a required field with an asterisk in its label, so that counts too. */
+export function isRequired(element: HTMLElement): boolean {
+  if (element.hasAttribute("required") || element.getAttribute("aria-required") === "true" || inRequiredGroup(element)) return true;
+  const label = element.getAttribute("aria-label") ?? "";
+  return [...labelTexts(element), label, precedingText(element)].some((text) => REQUIRED_MARK.test(text));
+}
+
 /** The text a person sees for a radio button or similar choice. */
 export const choiceLabel = (element: HTMLElement): string => labelTexts(element).join(" ").trim();
 

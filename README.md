@@ -32,6 +32,7 @@ After changing source code, run `npm run build`, then click Reload on the extens
 |---|---|
 | `npm run build` | Builds the extension into `dist/` |
 | `npm run watch` | Rebuilds when source files change |
+| `npm run package` | Builds without source maps and writes the store zip to `release/` |
 | `npm run typecheck` | Type-checks `src/` and `tests/` |
 | `npm test` | Runs unit tests in happy-dom |
 | `npm run test:e2e` | Builds, then runs the real-browser tests |
@@ -64,7 +65,7 @@ One click runs this pipeline. It repeats for fields revealed by earlier selectio
 |---|---|---|
 | Detect | `content/detector.ts` | Finds fields in the page, open shadow roots and same-origin iframes |
 | Understand | `content/context.ts`, `content/classifier.ts` | Weighs `autocomplete`, labels, ARIA, names, placeholders and nearby text; a parent shared with other fields is ignored |
-| Generate | `generators/profile.ts`, `generators/values.ts`, `generators/locales.ts` | Builds one coherent profile, then fits each value to the field's own limits |
+| Generate | `generators/profile.ts`, `generators/values.ts`, `generators/locales.ts`, `generators/testValues.ts` | Builds one coherent profile, fits each value to the field's own limits, then applies the test data mode |
 | Dropdowns | `content/dropdown.ts`, `content/customDropdown.ts` | Fills Country → State → City first, waiting up to 2.5 seconds for a dependent list to enable and up to 5 seconds for an open list to load |
 | Dates | `content/datePicker.ts` | Tries date formats until a picker keeps one, or uses the calendar |
 | Write | `content/writers.ts` | Sends the events frameworks expect, including focus and blur |
@@ -84,7 +85,7 @@ To add a field type, add it to `FieldKind` and `RULES` in `classifier.ts`. The c
 
 Settings save automatically, persist in `chrome.storage.local` and apply on every site. There are two ways to reach them:
 
-- Right-click the toolbar icon. **Fill on icon click**, **Replace existing values** and **Fill custom dropdowns** are ticks in that menu, along with **Undo last fill** and, once you have saved one, **Test profile**. **Options** opens every setting.
+- Right-click the toolbar icon. **Test data** switches the data mode. **Filling options** holds ticks for **Fill on icon click**, **Replace existing values**, **Required fields only** and **Fill custom dropdowns**. The menu also has **Clear form**, **Undo last fill** and, once you have saved one, **Test profile**. **Options** opens every setting.
 - Open **Details** on `chrome://extensions` and choose **Extension options**.
 
 By default one click on the toolbar icon fills the page, with no popup. Hover over the icon to see how many fields were filled. The icon only changes to show an amber `!` warning if something needs attention.
@@ -96,10 +97,10 @@ With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page*
 | Identity | Email domain, domain suffix, age and experience ranges, first and last name, middle name on or off, name region (Indian by default), gender, username style, password pattern, company, department, job title |
 | Region | Country (India by default, or United States, United Kingdom, Canada, Australia), phone format, date format, currency, address format |
 | Data generation | Text style, number range, decimals, date range, company size range, and patterns for employee, customer and invoice IDs |
-| Filling behavior | Dropdown, radio, multi-select and checkbox preferences, all forms or the selected form, one-click filling, custom dropdowns on or off, replacing values, unique repeated values, dynamic fields, same-origin iframes |
+| Filling behavior | Test data mode, required fields only, dropdown, radio, multi-select and checkbox preferences, all forms or the selected form, one-click filling, custom dropdowns on or off, replacing values, unique repeated values, dynamic fields, same-origin iframes |
 | Custom rules | One `keyword = value` per line |
 | Saved profiles | Named sets of values, with one active at a time |
-| Advanced | Highlighting, detailed reports, reusing generated data |
+| Advanced | Highlighting, detailed reports, reusing generated data, security strings in the field menu |
 
 Leave a name, company, department or title blank for a generated one. A text field's own date placeholder, such as `dd/mm/yyyy`, takes priority over the date format. A field's own `min` and `max` take priority over the number range, and decimals only apply where the field allows them.
 
@@ -107,7 +108,37 @@ Leave a name, company, department or title blank for a generated one. A text fie
 
 "Selected form" means the form containing the focused field, or otherwise the form with the most fields.
 
-The fill shortcut is Alt+Shift+F, which you can change at `chrome://extensions/shortcuts`.
+## Keyboard shortcuts
+
+| Shortcut | What it does |
+|---|---|
+| Alt+Shift+F | Fills the form, or opens the popup when **Fill on icon click** is off |
+| Alt+Shift+D | Fills the focused field |
+| Alt+Shift+C | Clears the form |
+| Alt+Shift+M | Switches to the next test data mode |
+| Not set | Undoes the last fill |
+
+The shortcuts in use are shown next to the items in both right-click menus and in the icon's tooltip. Change any of them at `chrome://extensions/shortcuts`; the labels catch up at the next settings change or browser restart. Chrome allows an extension four default shortcuts, so Undo has to be set there. Chrome leaves a default unset if another extension already uses it.
+
+## Testing tools
+
+**Test data** decides what text, number and date fields receive. It stays on until changed, and the toolbar icon shows a label for every mode except Valid, so nobody tests with bad data by accident.
+
+| Mode | Icon | What fields receive |
+|---|---|---|
+| Valid data | None | Realistic values that fit each field |
+| Invalid data | `INV` | Wrong formats for known field types, and values just past any declared limit |
+| Minimum limits | `MIN` | Exactly `minlength` or `min` |
+| Maximum limits | `MAX` | Exactly `maxlength` or `max`, staying on the field's `step` |
+| Edge cases | `EDGE` | Awkward but valid values, such as `O'Brien`, emoji, right-to-left text, zero and a leap day |
+
+Dropdowns, radio buttons and checkboxes stay valid in every mode, so the rest of a form can still be reached. Custom rules keep priority, and payment, one-time code and CAPTCHA fields are still skipped. A field with no declared limit keeps its valid value in the minimum and maximum modes, and in invalid mode when its type has no known bad value. In any mode other than Valid, a field refusing a value is reported on the icon's tooltip but not treated as a problem. Fields the browser marks as invalid are listed as `Check validation`.
+
+**Required fields only** leaves out anything not marked `required` or `aria-required`, or with a label ending in `*` or containing `(required)`.
+
+**Clear form** empties the same fields a fill uses, and **Undo** reverses it. Radio buttons, custom dropdowns and lists with no blank option cannot be emptied safely, so they are counted instead.
+
+**Right-click a text field** to use **Fill entire form**, **Fill this field**, which follows the data mode, or to pick a value from the library. Chosen values are written exactly, even past a field's `maxlength`, but still never reach a read-only or disabled field. **Add security strings to the field menu** adds common injection strings. It is off by default: use them only on systems you are authorised to test. Library values are in `shared/valueLibrary.ts`.
 
 **Undo last fill** restores text fields, selects and checkboxes. Radio buttons, custom dropdowns and calendar pickers cannot be restored safely, and the result says how many were left. Undo is lost when the page reloads.
 
@@ -146,6 +177,10 @@ Custom rules take one `keyword = value` per line, for example `employee id = EMP
 - Generated values, including passwords, never appear in the report.
 
 Filling fires the page's own `change` handlers, as typing would. A page that acts on those handlers will still act, so use this on test environments. **Replace existing values** is on by default, so a click overwrites what is in a form, including saved passwords. A site control built from plain `div`s with no recognisable header or navigation markup cannot be told apart from a form field.
+
+## Publishing
+
+`npm run package` writes the store zip to `release/`. It leaves `dist/` without source maps until the next `npm run build`. `CHROMEWEBSTORE.md` holds the listing text, permission reasons, privacy answers and a pre-submission checklist, `PRIVACY.md` is the privacy policy, and `store/` holds the images.
 
 ## Tested compatibility
 
@@ -186,3 +221,6 @@ These are local test pages, not a guarantee for every site.
 - A `type="number"` field cannot hold letters, so UK and Canadian postal codes there are reduced to their digits.
 - A disabled list that never loads adds up to 2.5 seconds to a fill. Dropdowns that never open cost up to 2 seconds each, capped at 20 seconds per pass.
 - The extension cannot run on Chrome internal pages or the Chrome Web Store.
+- Chrome does not say which element a right-click menu was opened on, so field actions use the focused field.
+- Undo may report nothing to restore after a single field was filled inside an iframe, when the main page has also been filled.
+- Invalid mode cannot put text in a `type="number"` or `type="date"` input, because the browser discards it. Those fields get an out-of-range value instead, or keep a valid one when no limit is declared.

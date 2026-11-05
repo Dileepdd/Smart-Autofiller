@@ -26,7 +26,10 @@
         <div><dt>Unsupported</dt><dd id="countUnsupported">0</dd></div>
       </dl>
       <ul id="details" class="details" hidden></ul>
-      <button id="undoButton" class="secondary" type="button" hidden>Undo fill</button>
+      <div class="actions">
+        <button id="undoButton" class="secondary" type="button" hidden>Undo fill</button>
+        <button id="clearButton" class="secondary" type="button">Clear form</button>
+      </div>
     </div>
     <footer class="foot">Runs locally. Forms are never submitted.</footer>
   </div>
@@ -140,6 +143,11 @@
 
       <details>
         <summary>Filling behavior</summary>
+        <div class="row"><label for="dataMode">Test data</label>
+          <select id="dataMode" data-setting>
+            <option value="valid">Valid data</option><option value="invalid">Invalid data</option><option value="minimum">Minimum limits</option><option value="maximum">Maximum limits</option><option value="edge">Edge cases</option>
+          </select>
+        </div>
         <div class="row"><label for="dropdownMode">Dropdowns</label>
           <select id="dropdownMode" data-setting>
             <option value="match">Match profile</option><option value="first">First valid</option><option value="random">Random valid</option>
@@ -165,6 +173,7 @@
         </div>
         <label class="check"><input id="fillOnOpen" data-setting type="checkbox" /> Fill on icon click, without this popup</label>
         <label class="check"><input id="fillExisting" data-setting type="checkbox" /> Replace existing values</label>
+        <label class="check"><input id="requiredOnly" data-setting type="checkbox" /> Required fields only</label>
         <label class="check"><input id="fillCustomDropdowns" data-setting type="checkbox" /> Fill custom dropdowns (slower)</label>
         <label class="check"><input id="uniqueValues" data-setting type="checkbox" /> Unique values in repeated fields</label>
         <label class="check"><input id="detectDynamic" data-setting type="checkbox" /> Fill fields that appear during a fill</label>
@@ -219,7 +228,9 @@
         <label class="check"><input id="highlightFilled" data-setting type="checkbox" /> Highlight filled fields briefly</label>
         <label class="check"><input id="detailedReport" data-setting type="checkbox" /> Show a detailed fill report</label>
         <label class="check"><input id="reuseProfile" data-setting type="checkbox" /> Reuse the same generated data on every click</label>
-        <p class="hint">Turn reuse off and on again for new data. The fill shortcut is Alt+Shift+F; change it at <code>chrome://extensions/shortcuts</code>.</p>
+        <label class="check"><input id="showSecurityValues" data-setting type="checkbox" /> Add security strings to the field menu (authorised testing only)</label>
+        <p class="hint">Turn reuse off and on again for new data.</p>
+        <p class="hint">Default shortcuts: Alt+Shift+F fills the form, Alt+Shift+D the focused field, Alt+Shift+C clears, Alt+Shift+M switches test data. Change them, or add one for Undo, at <code>chrome://extensions/shortcuts</code>.</p>
       </details>
     </form>
   </div>

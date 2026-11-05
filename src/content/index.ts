@@ -1,3 +1,5 @@
+import { clearPage } from "./clear";
+import { fillFocusedField } from "./field";
 import { fillPage } from "./filler";
 import { undoLastFill } from "./undo";
 import { DEFAULT_SETTINGS, AutofillSettings, FillResult } from "../shared/types";
@@ -5,6 +7,8 @@ import { DEFAULT_SETTINGS, AutofillSettings, FillResult } from "../shared/types"
 const runtime = globalThis as typeof globalThis & { __smartAutofillListenerInstalled?: boolean };
 
 const failure = (detail: string): FillResult => ({ filled: 0, skipped: 0, errors: 1, unsupported: 0, details: [detail] });
+
+const settingsFrom = (message: { settings?: Partial<AutofillSettings> }): AutofillSettings => ({ ...DEFAULT_SETTINGS, ...message.settings });
 
 if (!runtime.__smartAutofillListenerInstalled) {
   runtime.__smartAutofillListenerInstalled = true;
@@ -15,14 +19,21 @@ if (!runtime.__smartAutofillListenerInstalled) {
       sendResponse(undoLastFill());
       return;
     }
+    if (message?.type === "SMART_AUTOFILL_CLEAR") {
+      sendResponse(clearPage(settingsFrom(message)));
+      return;
+    }
+    if (message?.type === "SMART_AUTOFILL_FIELD") {
+      sendResponse(fillFocusedField(settingsFrom(message), message.value));
+      return;
+    }
     if (message?.type !== "SMART_AUTOFILL_FILL") return;
     if (filling) {
       sendResponse(failure("A fill is already running on this page."));
       return;
     }
     filling = true;
-    const settings = { ...DEFAULT_SETTINGS, ...(message.settings as Partial<AutofillSettings> | undefined) };
-    fillPage(settings)
+    fillPage(settingsFrom(message))
       .then(sendResponse)
       .catch((error: unknown) => sendResponse(failure(String(error))))
       .finally(() => { filling = false; });

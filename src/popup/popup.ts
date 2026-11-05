@@ -1,7 +1,7 @@
-import { FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, undoFill, undoMessage } from "../shared/fill";
+import { clearMessage, clearTab, FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, undoFill, undoMessage } from "../shared/fill";
 import { activeProfile, getEffectiveSettings, getProfileStore } from "../shared/profiles";
 import { getSettings, saveSettings } from "../shared/settings";
-import { FillResult } from "../shared/types";
+import { DATA_MODES, FillResult } from "../shared/types";
 import { initProfiles } from "./profilesForm";
 import { fillForm, readForm } from "./settingsForm";
 
@@ -50,7 +50,8 @@ const COUNTRY_NAMES: Record<string, string> = { IN: "India", US: "United States"
 
 async function showProfile(): Promise<void> {
   const [settings, store] = await Promise.all([getEffectiveSettings(), getProfileStore()]);
-  const summary = `${COUNTRY_NAMES[settings.country]} data, @${settings.emailDomain}`;
+  const mode = settings.dataMode === "valid" ? "" : `. ${DATA_MODES[settings.dataMode].label}`;
+  const summary = `${COUNTRY_NAMES[settings.country]} data, @${settings.emailDomain}${mode}`;
   const profile = activeProfile(store);
   byId("profile").textContent = profile ? `${profile.name}: ${summary}` : summary;
 }
@@ -107,6 +108,17 @@ async function undoActiveTab(): Promise<void> {
   status(undoMessage(await undoFill(await activeTabId())));
 }
 
+async function clearActiveTab(): Promise<void> {
+  showResult();
+  try {
+    const result = await clearTab(await activeTabId(), await getEffectiveSettings());
+    status(clearMessage(result));
+    byId("undoButton").hidden = !result.cleared;
+  } catch (error) {
+    status(fillErrorMessage(error), true);
+  }
+}
+
 byId("settingsButton").addEventListener("click", () => showView("settings"));
 byId("backButton").addEventListener("click", () => showView("main"));
 byId("settingsForm").addEventListener("change", (event) => {
@@ -115,6 +127,7 @@ byId("settingsForm").addEventListener("change", (event) => {
 byId("settingsForm").addEventListener("submit", (event) => event.preventDefault());
 byId("fillButton").addEventListener("click", () => void fillActiveTab());
 byId("undoButton").addEventListener("click", () => void undoActiveTab());
+byId("clearButton").addEventListener("click", () => void clearActiveTab());
 
 if (isOptionsPage) {
   document.body.classList.add("is-options");

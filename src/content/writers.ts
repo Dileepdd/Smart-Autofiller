@@ -56,6 +56,20 @@ export function writeMultiSelect(select: HTMLSelectElement, values: string[]): v
 /** A real click, so checkboxes and radios fire the events frameworks listen for. */
 export const toggle = (element: HTMLInputElement): void => element.click();
 
+/**
+ * A last line of defence: if a page's own handler tries to submit while values are being
+ * written, that is stopped and reported. The returned function removes the block again.
+ */
+export function blockSubmissions(onBlocked: () => void): () => void {
+  const block = (event: Event): void => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    onBlocked();
+  };
+  window.addEventListener("submit", block, true);
+  return () => window.removeEventListener("submit", block, true);
+}
+
 const HIGHLIGHT_MS = 2000;
 
 /** Outlines fields briefly. Uses outline because, unlike a border, it cannot shift the page's layout. */

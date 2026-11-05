@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Smart Autofill – QA Test Data",
   "version": "0.1.0",
+  "minimum_chrome_version": "120",
   "description": "Fill web forms with realistic, connected test data in one click. Runs locally; no API key required.",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
   "background": {
@@ -15,10 +16,25 @@
     "_execute_action": {
       "suggested_key": { "default": "Alt+Shift+F" },
       "description": "Fill the page"
+    },
+    "fill-field": {
+      "suggested_key": { "default": "Alt+Shift+D" },
+      "description": "Fill the focused field"
+    },
+    "clear-form": {
+      "suggested_key": { "default": "Alt+Shift+C" },
+      "description": "Clear the form"
+    },
+    "next-data-mode": {
+      "suggested_key": { "default": "Alt+Shift+M" },
+      "description": "Switch to the next test data mode"
+    },
+    "undo-fill": {
+      "description": "Undo the last fill"
     }
   },
   "action": {
-    "default_title": "Smart Autofill",
+    "default_title": "Smart Autofill – Click to autofill this form",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

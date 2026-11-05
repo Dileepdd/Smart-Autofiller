@@ -1,0 +1,22 @@
+<!doctype html>
+<html><body>
+<form id="form" action="/submitted">
+  <div><label for="email">Email *</label><input id="email" type="email" required></div>
+  <div><label for="company">Company name</label><input id="company" maxlength="12" minlength="3"></div>
+  <div><label for="age">Age</label><input id="age" type="number" min="18" max="65"></div>
+  <div><label for="start">Start date</label><input id="start" type="date" min="2024-01-01" max="2024-12-31"></div>
+  <div><label for="plan">Plan</label><select id="plan"><option value="">Choose</option><option>Basic</option></select></div>
+  <div><label><input id="terms" type="checkbox" required> Accept terms</label></div>
+  <div><label for="locked">Reference</label><input id="locked" value="kept" readonly></div>
+  <button id="save" type="submit">Save</button>
+</form>
+<script>
+  window.__submitted = 0;
+  document.getElementById("form").addEventListener("submit", (event) => { event.preventDefault(); window.__submitted++; });
+  window.__state = () => ({
+    ...Object.fromEntries([...document.querySelectorAll("input,select")].map((field) => [field.id, field.type === "checkbox" ? field.checked : field.value])),
+    invalid: [...document.querySelectorAll("input")].filter((field) => !field.validity.valid).map((field) => field.id),
+    submitted: window.__submitted
+  });
+</script>
+</body></html>

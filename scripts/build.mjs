@@ -2,6 +2,7 @@ import { build, context } from "esbuild";
 import { cp, mkdir, rm } from "node:fs/promises";
 
 const watch = process.argv.includes("--watch");
+const release = process.argv.includes("--release");
 const outdir = "dist";
 
 await rm(outdir, { recursive: true, force: true });
@@ -10,7 +11,7 @@ await cp("public", outdir, { recursive: true });
 
 const common = {
   bundle: true,
-  sourcemap: true,
+  sourcemap: !release,
   target: "chrome120",
   logLevel: "info"
 };
@@ -24,6 +25,7 @@ const jobs = [
 await cp("src/popup/popup.html", `${outdir}/popup.html`);
 await cp("src/popup/popup.html", `${outdir}/options.html`);
 await cp("src/popup/popup.css", `${outdir}/popup.css`);
+await cp("node_modules/@faker-js/faker/LICENSE", `${outdir}/LICENSE-faker.txt`);
 
 if (watch) {
   const contexts = await Promise.all(jobs.map((job) => context(job)));

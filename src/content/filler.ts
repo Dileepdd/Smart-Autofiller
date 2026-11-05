@@ -2,14 +2,14 @@ import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, P
 import { customRuleValue, dateCandidates, generateValue, isDateKind, pickDate } from "../generators/values";
 import { AutofillSettings, FillResult, SelectionMode } from "../shared/types";
 import { classifyField, FieldKind, getFieldDescription } from "./classifier";
-import { choiceLabel } from "./context";
+import { choiceLabel, isRequired } from "./context";
 import { comboboxHasValue, comboboxValue, fillCombobox } from "./customDropdown";
 import { isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePicker";
 import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isInput, isSelect, isVisible } from "./detector";
 import { hasSelection, pickChoice, pickMany, toChoice, usableOptions } from "./dropdown";
 import { remember, startSnapshot } from "./undo";
 import { delay, waitFor } from "./waiting";
-import { highlight, toggle, writeEditable, writeMultiSelect, writeSelect, writeValue } from "./writers";
+import { blockSubmissions, highlight, toggle, writeEditable, writeMultiSelect, writeSelect, writeValue } from "./writers";
 
 /** Rescans catch fields revealed by earlier selections; the limit stops pages that keep re-rendering. */
 const MAX_PASSES = 4;
@@ -70,6 +70,13 @@ const markUnsupported = (run: FillRun, element: HTMLElement, reason: string): vo
   run.result.details.push(`${reason}: ${describe(element)}`);
 };
 
+/** In a test data mode a page refusing the value is often the point, so it is reported but not a problem. */
+const markRejected = (run: FillRun, element: HTMLElement): void => {
+  if (run.settings.dataMode === "valid") return markFailed(run, element, "Field rejected the value");
+  settle(run, element);
+  run.result.details.push(`Field rejected the value: ${describe(element)}`);
+};
+
 const describe = (element: HTMLElement): string => getFieldDescription(element).slice(0, 100) || element.tagName.toLowerCase();
 
 const customValue = (run: FillRun, element: HTMLElement): string | undefined =>
@@ -106,7 +113,7 @@ function fillSelect(run: FillRun, select: HTMLSelectElement, kind: FieldKind): v
 async function fillComboboxField(run: FillRun, trigger: HTMLElement, kind: FieldKind): Promise<void> {
   if (kind === "skip") return markSkipped(run, trigger);
   const { targets, mode } = selection(run, trigger, kind, run.settings.dropdownMode);
-  const query = targets[0] ?? generateValue(kind, run.settings, run.profile);
+  const query = targets[0] ?? generateValue(kind, { ...run.settings, dataMode: "valid" }, run.profile);
   remember(trigger);
   const label = await fillCombobox(trigger, targets, query, mode);
   if (!label) {
@@ -137,7 +144,8 @@ function adoptPresetLocation(run: FillRun, fields: HTMLElement[]): void {
   const presets = fields.flatMap((element) => {
     const kind = classifyField(element);
     const locked = isSelect(element) || isCombobox(element) ? isInactive(element) : isDisabled(element);
-    const staying = locked || !run.settings.fillExisting || (isCombobox(element) && !run.settings.fillCustomDropdowns);
+    const staying = locked || !run.settings.fillExisting || (isCombobox(element) && !run.settings.fillCustomDropdowns) ||
+      (run.settings.requiredOnly && !isRequired(element));
     return DROPDOWN_ORDER.includes(kind) && staying ? [{ element, kind }] : [];
   });
   for (const kind of DROPDOWN_ORDER) {
@@ -242,13 +250,15 @@ async function fillText(run: FillRun, element: HTMLInputElement | HTMLTextAreaEl
   const kind = classifyField(element);
   const custom = customValue(run, element);
   if (kind === "skip" && custom === undefined) return markSkipped(run, element);
-  if (custom === undefined && isDateKind(kind) && isInput(element) && element.type !== "date") return fillTextDate(run, element, kind);
+  // A date picker would refuse an invalid date before the page's own validation ever saw it.
+  const usesPicker = custom === undefined && isDateKind(kind) && isInput(element) && element.type !== "date" && run.settings.dataMode !== "invalid";
+  if (usesPicker) return fillTextDate(run, element, kind);
 
   const value = custom ?? generateValue(kind === "skip" ? "text" : kind, run.settings, run.profile, element, repeatIndex(run, element, kind));
   // Only an excluded value, such as the middle name when that setting is off, comes back empty.
   if (value === "") return markSkipped(run, element);
   remember(element);
-  if (!writeValue(element, value)) return markFailed(run, element, "Field rejected the value");
+  if (!writeValue(element, value)) return markRejected(run, element);
   if (element.validity && !element.validity.valid) {
     // Preserve the generated value but report fields that need a custom rule.
     run.result.details.push(`Check validation: ${describe(element)}`);
@@ -263,7 +273,7 @@ function reportClearedFields(run: FillRun): void {
     if (!element.isConnected) continue;
     if (element.value === "") {
       run.result.filled--;
-      run.result.errors++;
+      if (run.settings.dataMode === "valid") run.result.errors++;
       run.result.details.push(`Field cleared the value: ${describe(element)}`);
     } else if (element.getAttribute("aria-invalid") === "true") {
       run.result.details.push(`Check validation: ${describe(element)}`);
@@ -296,34 +306,22 @@ async function fillField(run: FillRun, element: HTMLElement): Promise<void> {
   }
 }
 
-/**
- * A last line of defence: if a page's own handler tries to submit while values are being
- * written, that is stopped and reported. Removed again when the fill ends.
- */
-function blockSubmissions(run: FillRun): () => void {
-  const block = (event: Event): void => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    run.result.details.push("Blocked a form submission during the fill.");
-  };
-  window.addEventListener("submit", block, true);
-  return () => window.removeEventListener("submit", block, true);
-}
-
 const isDropdown = (element: HTMLElement): boolean => {
   if (isSelect(element)) return true;
   return isCombobox(element) && !(isInput(element) && isDateKind(classifyField(element)));
 };
 
 async function fillPasses(run: FillRun): Promise<void> {
-  const { detectDynamic, includeFrames, fillScope } = run.settings;
+  const { detectDynamic, includeFrames, fillScope, requiredOnly } = run.settings;
   for (let pass = 0; pass < (detectDynamic ? MAX_PASSES : 1); pass++) {
     const fields = collectFields(document, { includeFrames, scope: fillScope }).filter((element) => !run.done.has(element));
     run.changed = false;
 
     adoptPresetLocation(run, fields);
-    await fillDropdowns(run, fields.filter(isDropdown));
-    for (const element of fields.filter((field) => !isDropdown(field))) await fillField(run, element);
+    const wanted = requiredOnly ? fields.filter(isRequired) : fields;
+    if (requiredOnly) fields.filter((field) => !wanted.includes(field) && isVisible(field)).forEach((field) => markSkipped(run, field));
+    await fillDropdowns(run, wanted.filter(isDropdown));
+    for (const element of wanted.filter((field) => !isDropdown(field))) await fillField(run, element);
 
     if (!run.changed) break;
     await delay(SETTLE_MS);
@@ -355,7 +353,7 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
   };
   startSnapshot();
 
-  const allowSubmissions = blockSubmissions(run);
+  const allowSubmissions = blockSubmissions(() => run.result.details.push("Blocked a form submission during the fill."));
   try {
     await fillPasses(run);
   } finally {

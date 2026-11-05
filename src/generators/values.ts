@@ -3,6 +3,7 @@ import { FieldKind } from "../content/classifier";
 import { formatHint, splitWords } from "../content/context";
 import { AutofillSettings } from "../shared/types";
 import { pickInt, Profile, renderProfileTemplate } from "./profile";
+import { matchesPattern, testValue } from "./testValues";
 
 export type GeneratedKind = Exclude<FieldKind, "skip">;
 
@@ -138,14 +139,6 @@ const GENERATORS: Record<GeneratedKind, (context: GeneratorContext) => string> =
   text: ({ settings }) => (settings.textMode === "random" ? faker.string.alpha(10) : faker.word.words(2))
 };
 
-function matchesPattern(value: string, pattern: string): boolean {
-  try {
-    return new RegExp(`^(?:${pattern})$`).test(value);
-  } catch {
-    return true;
-  }
-}
-
 /** Remembers replacements per profile so that a password and its confirmation stay identical. */
 const patternValues = new WeakMap<Profile, Map<string, string>>();
 
@@ -245,7 +238,8 @@ function uniqueVariant(kind: GeneratedKind, value: string, repeat: number): stri
 /** `repeat` counts earlier fields of this kind, for filling them with different values. */
 export function generateValue(kind: GeneratedKind, settings: AutofillSettings, profile: Profile, element?: TextField, repeat = 0): string {
   const value = uniqueVariant(kind, GENERATORS[kind]({ settings, profile, element }), repeat);
-  return element ? fitConstraints(fitFormat(value, kind, element), kind, element, profile) : value;
+  const valid = element ? fitConstraints(fitFormat(value, kind, element), kind, element, profile) : value;
+  return testValue(settings.dataMode, kind, valid, element);
 }
 
 /** Returns the value of the first custom rule whose keyword appears in the field's description. */

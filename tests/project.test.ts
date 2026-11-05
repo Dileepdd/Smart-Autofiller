@@ -18,6 +18,12 @@ describe("manifest", () => {
     expect(manifest.content_scripts).toBeUndefined();
   });
 
+  it("stays within Chrome's limit of four default shortcuts, with no repeats", () => {
+    const keys = Object.values<{ suggested_key?: { default: string } }>(manifest.commands).flatMap(({ suggested_key }) => suggested_key?.default ?? []);
+    expect(keys.length).toBeLessThanOrEqual(4);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
   it("has no default popup, so a first click fills", () => {
     expect(manifest.action.default_popup).toBeUndefined();
   });
