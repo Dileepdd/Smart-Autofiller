@@ -231,7 +231,15 @@ export class Extension {
       }
       await sleep(POLL_MS);
     }
-    throw new Error("The icon never showed a result.");
+    const seen = await page.evaluate(`(async () => {
+      const tabs = await chrome.tabs.query({});
+      return {
+        popup: await chrome.action.getPopup({}),
+        badges: await Promise.all(tabs.map(({ id: tabId }) => chrome.action.getBadgeText({ tabId }))),
+        popupOpen: ${await this.isPopupOpen()}
+      };
+    })()`);
+    throw new Error(`The icon never showed a result: ${JSON.stringify(seen)}`);
   }
 }
 

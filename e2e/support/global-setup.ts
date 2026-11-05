@@ -11,7 +11,8 @@ const generated = join(e2eRoot, ".generated");
 const CONTENT_TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 
 async function buildFixtures(): Promise<void> {
-  await rm(generated, { recursive: true, force: true });
+  // Windows briefly locks folders that an editor or virus scanner is reading.
+  await rm(generated, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   await mkdir(generated, { recursive: true });
   const fixtures = join(e2eRoot, "fixtures");
   const apps = { react: "react.jsx", vue: "vue.js", angular: "angular.js", libs: "libs.jsx", dates: "dates.jsx" };

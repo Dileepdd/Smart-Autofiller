@@ -21,11 +21,19 @@ async function createMenus(): Promise<void> {
   }
 }
 
-/** With no popup set, a click reaches onClicked. Chrome forgets this on restart, so it is reapplied. */
-async function applySettings(): Promise<void> {
-  const settings = await getSettings();
-  await chrome.action.setPopup({ popup: settings.fillOnOpen ? "" : "popup.html" });
-  await Promise.all(MENU_ITEMS.map(({ id }) => chrome.contextMenus.update(id, { checked: settings[id] })));
+let applying: Promise<void> = Promise.resolve();
+
+/**
+ * With no popup set, a click reaches onClicked. Chrome forgets this on restart, so it is reapplied.
+ * Runs one at a time, because overlapping runs could finish out of order and leave the older setting.
+ */
+function applySettings(): Promise<void> {
+  applying = applying.catch(() => undefined).then(async () => {
+    const settings = await getSettings();
+    await chrome.action.setPopup({ popup: settings.fillOnOpen ? "" : "popup.html" });
+    await Promise.all(MENU_ITEMS.map(({ id }) => chrome.contextMenus.update(id, { checked: settings[id] })));
+  });
+  return applying;
 }
 
 async function showOnIcon(tabId: number, badge: string, title: string, isProblem: boolean): Promise<void> {
