@@ -155,6 +155,7 @@ test.describe("the real extension", () => {
     const page = await open("simple");
     await extension.useShippedDefaults();
     const options = await extension.openOptions();
+    await options.locator("summary", { hasText: "Filling behavior" }).click();
     await options.uncheck("#fillOnOpen");
     await options.waitForFunction("chrome.action.getPopup({}).then((popup) => popup !== '')");
     await options.close();
