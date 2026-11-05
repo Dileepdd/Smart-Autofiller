@@ -1,6 +1,9 @@
-import { fillErrorMessage, fillTab } from "../shared/fill";
-import { formatCustomRules, getSettings, parseCustomRules, saveSettings, validateSettings } from "../shared/settings";
-import { AutofillSettings, DEFAULT_SETTINGS, FillResult } from "../shared/types";
+import { fillErrorMessage, fillTab, undoFill, undoMessage } from "../shared/fill";
+import { activeProfile, getEffectiveSettings, getProfileStore } from "../shared/profiles";
+import { getSettings, saveSettings } from "../shared/settings";
+import { FillResult } from "../shared/types";
+import { initProfiles } from "./profilesForm";
+import { fillForm, readForm } from "./settingsForm";
 
 const SAVED_MESSAGE_MS = 1500;
 
@@ -31,6 +34,7 @@ function showDetails(details: string[]): void {
 
 function showResult(result?: FillResult): void {
   byId("summary").hidden = !result;
+  byId("undoButton").hidden = !result?.filled;
   showDetails(result?.details ?? []);
   if (!result) return;
   byId("countFilled").textContent = String(result.filled);
@@ -42,53 +46,13 @@ function showResult(result?: FillResult): void {
   else status(result.filled ? "Page filled." : "Nothing to fill on this page.");
 }
 
-function showProfile(): void {
-  const country = byId<HTMLSelectElement>("country");
-  const domain = byId<HTMLInputElement>("emailDomain").value.trim().replace(/^@/, "");
-  byId("profile").textContent = `${country.selectedOptions[0]?.text ?? ""} data, @${domain}`;
-}
+const COUNTRY_NAMES: Record<string, string> = { IN: "India", US: "United States", GB: "United Kingdom", CA: "Canada", AU: "Australia" };
 
-async function load(): Promise<void> {
-  const settings = await getSettings();
-  byId<HTMLInputElement>("emailDomain").value = settings.emailDomain;
-  byId<HTMLInputElement>("ageMin").value = String(settings.ageMin);
-  byId<HTMLInputElement>("ageMax").value = String(settings.ageMax);
-  byId<HTMLInputElement>("experienceMin").value = String(settings.experienceMin);
-  byId<HTMLInputElement>("experienceMax").value = String(settings.experienceMax);
-  byId<HTMLSelectElement>("domainSuffix").value = settings.domainSuffix;
-  byId<HTMLSelectElement>("dropdownMode").value = settings.dropdownMode;
-  byId<HTMLInputElement>("fillExisting").checked = settings.fillExisting;
-  byId<HTMLInputElement>("fillOnOpen").checked = settings.fillOnOpen;
-  byId<HTMLSelectElement>("country").value = settings.country;
-  byId<HTMLSelectElement>("phoneFormat").value = settings.phoneFormat;
-  byId<HTMLSelectElement>("dateFormat").value = settings.dateFormat;
-  byId<HTMLTextAreaElement>("customRules").value = formatCustomRules(settings.customRules);
-  showProfile();
-}
-
-function readSettings(): AutofillSettings {
-  const number = (id: keyof AutofillSettings): number => {
-    const value = byId<HTMLInputElement>(id).value.trim();
-    return value !== "" && Number.isFinite(Number(value)) ? Number(value) : DEFAULT_SETTINGS[id] as number;
-  };
-  const settings: AutofillSettings = {
-    emailDomain: byId<HTMLInputElement>("emailDomain").value.trim().replace(/^@/, ""),
-    ageMin: number("ageMin"),
-    ageMax: number("ageMax"),
-    experienceMin: number("experienceMin"),
-    experienceMax: number("experienceMax"),
-    domainSuffix: byId<HTMLSelectElement>("domainSuffix").value,
-    dropdownMode: byId<HTMLSelectElement>("dropdownMode").value as AutofillSettings["dropdownMode"],
-    fillExisting: byId<HTMLInputElement>("fillExisting").checked,
-    fillOnOpen: byId<HTMLInputElement>("fillOnOpen").checked,
-    country: byId<HTMLSelectElement>("country").value as AutofillSettings["country"],
-    phoneFormat: byId<HTMLSelectElement>("phoneFormat").value as AutofillSettings["phoneFormat"],
-    dateFormat: byId<HTMLSelectElement>("dateFormat").value as AutofillSettings["dateFormat"],
-    customRules: parseCustomRules(byId<HTMLTextAreaElement>("customRules").value)
-  };
-  const problem = validateSettings(settings);
-  if (problem) throw new Error(problem);
-  return settings;
+async function showProfile(): Promise<void> {
+  const [settings, store] = await Promise.all([getEffectiveSettings(), getProfileStore()]);
+  const summary = `${COUNTRY_NAMES[settings.country]} data, @${settings.emailDomain}`;
+  const profile = activeProfile(store);
+  byId("profile").textContent = profile ? `${profile.name}: ${summary}` : summary;
 }
 
 function showView(view: "main" | "settings"): void {
@@ -102,9 +66,9 @@ async function saveForm(): Promise<void> {
   const error = byId<HTMLParagraphElement>("settingsError");
   const saveState = byId("saveState");
   try {
-    await saveSettings(readSettings());
+    await saveSettings(readForm(await getSettings()));
     error.hidden = true;
-    showProfile();
+    await showProfile();
     saveState.textContent = "Saved";
     window.clearTimeout(savedTimer);
     savedTimer = window.setTimeout(() => { saveState.textContent = ""; }, SAVED_MESSAGE_MS);
@@ -115,10 +79,11 @@ async function saveForm(): Promise<void> {
   }
 }
 
-byId("settingsButton").addEventListener("click", () => showView("settings"));
-byId("backButton").addEventListener("click", () => showView("main"));
-byId("settingsForm").addEventListener("change", () => void saveForm());
-byId("settingsForm").addEventListener("submit", (event) => event.preventDefault());
+async function activeTabId(): Promise<number> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("No active tab found.");
+  return tab.id;
+}
 
 async function fillActiveTab(): Promise<void> {
   const button = byId<HTMLButtonElement>("fillButton");
@@ -126,11 +91,8 @@ async function fillActiveTab(): Promise<void> {
   showResult();
   status("Filling…");
   try {
-    const settings = readSettings();
-    await saveSettings(settings);
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) throw new Error("No active tab found.");
-    showResult(await fillTab(tab.id, settings));
+    await saveSettings(readForm(await getSettings()));
+    showResult(await fillTab(await activeTabId(), await getEffectiveSettings()));
   } catch (error) {
     status(fillErrorMessage(error), true);
   } finally {
@@ -138,11 +100,29 @@ async function fillActiveTab(): Promise<void> {
   }
 }
 
+async function undoActiveTab(): Promise<void> {
+  showResult();
+  status(undoMessage(await undoFill(await activeTabId())));
+}
+
+byId("settingsButton").addEventListener("click", () => showView("settings"));
+byId("backButton").addEventListener("click", () => showView("main"));
+byId("settingsForm").addEventListener("change", (event) => {
+  if ((event.target as HTMLElement).matches("[data-setting]")) void saveForm();
+});
+byId("settingsForm").addEventListener("submit", (event) => event.preventDefault());
 byId("fillButton").addEventListener("click", () => void fillActiveTab());
+byId("undoButton").addEventListener("click", () => void undoActiveTab());
 
 if (isOptionsPage) {
   document.body.classList.add("is-options");
   showView("settings");
+}
+
+async function load(): Promise<void> {
+  fillForm(await getSettings());
+  await initProfiles(() => void showProfile());
+  await showProfile();
 }
 
 void load().catch(() => status("Could not load saved settings.", true));

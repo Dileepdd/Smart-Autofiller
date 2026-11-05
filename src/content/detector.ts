@@ -1,3 +1,5 @@
+import { FillScope } from "../shared/types";
+
 export type NativeField = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 const NATIVE_FIELDS =
@@ -39,14 +41,19 @@ export const isDisabled = (element: HTMLElement): boolean =>
   ((isInput(element) || isTextArea(element)) && element.readOnly) ||
   element.getAttribute("aria-readonly") === "true";
 
-function searchRoots(root: Document | ShadowRoot): Array<Document | ShadowRoot> {
+export interface DetectionOptions {
+  includeFrames: boolean;
+  scope: FillScope;
+}
+
+function searchRoots(root: Document | ShadowRoot, includeFrames: boolean): Array<Document | ShadowRoot> {
   const roots: Array<Document | ShadowRoot> = [root];
   for (const element of Array.from(root.querySelectorAll("*"))) {
-    if (element.shadowRoot) roots.push(...searchRoots(element.shadowRoot));
-    if (element.tagName !== "IFRAME") continue;
+    if (element.shadowRoot) roots.push(...searchRoots(element.shadowRoot, includeFrames));
+    if (element.tagName !== "IFRAME" || !includeFrames) continue;
     try {
       const frame = (element as HTMLIFrameElement).contentDocument;
-      if (frame) roots.push(...searchRoots(frame));
+      if (frame) roots.push(...searchRoots(frame, includeFrames));
     } catch {
       // Cross-origin frames are out of reach by design.
     }
@@ -54,12 +61,22 @@ function searchRoots(root: Document | ShadowRoot): Array<Document | ShadowRoot> 
   return roots;
 }
 
-/** Finds every fillable control in the document, its open shadow roots and same-origin iframes. */
-export function collectFields(document: Document): HTMLElement[] {
-  const found = searchRoots(document).flatMap((root) =>
+/** The form the user is working in, or failing that the one with the most fields. */
+function selectedForm(document: Document): HTMLFormElement | null {
+  const focused = document.activeElement?.closest("form");
+  if (focused) return focused;
+  const count = (form: HTMLFormElement): number => form.querySelectorAll(NATIVE_FIELDS).length;
+  return Array.from(document.forms).sort((a, b) => count(b) - count(a))[0] ?? null;
+}
+
+/** Finds every fillable control in the document, its open shadow roots and, optionally, same-origin iframes. */
+export function collectFields(document: Document, options: DetectionOptions = { includeFrames: true, scope: "all" }): HTMLElement[] {
+  const form = options.scope === "form" ? selectedForm(document) : null;
+  const found = searchRoots(document, options.includeFrames).flatMap((root) =>
     Array.from(root.querySelectorAll<HTMLElement>(`${NATIVE_FIELDS}, ${COMBOBOXES}, ${EDITABLES}`))
   );
   return found.filter((element) => {
+    if (form && !form.contains(element)) return false;
     if (element.matches(DATE_SECTIONS)) return false;
     if (isEditable(element)) return !element.parentElement?.closest(EDITABLES);
     // A combobox wrapper already owns the input inside it.

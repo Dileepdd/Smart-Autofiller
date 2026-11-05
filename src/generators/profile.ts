@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { PROFILE_TOKENS, renderTemplate } from "../shared/template";
 import { AutofillSettings } from "../shared/types";
 import { City, findCity, findLocale, findRegion, Locale, localeByCode, Region } from "./locales";
 
@@ -8,14 +9,17 @@ export interface Profile {
   middleName: string;
   lastName: string;
   fullName: string;
+  gender: string;
   email: string;
   username: string;
   password: string;
   jobTitle: string;
+  department: string;
   age: number;
   dateOfBirth: Date;
   experience: number;
   company: string;
+  companySize: number;
   domain: string;
   website: string;
   phone: string;
@@ -29,6 +33,10 @@ export interface Profile {
   postalCode: string;
   country: string;
   countryCode: string;
+  currency: string;
+  employeeId: string;
+  customerId: string;
+  invoiceId: string;
 }
 
 /** Earliest age at which experience starts counting. */
@@ -81,6 +89,7 @@ function setLocale(profile: Profile, locale: Locale, settings: AutofillSettings)
   const region = faker.helpers.arrayElement(locale.regions);
   profile.country = locale.name;
   profile.countryCode = locale.code;
+  profile.currency = settings.currency === "auto" ? locale.currency : settings.currency;
   profile.phone = formatPhone(locale, settings.phoneFormat);
   profile.taxId = faker.helpers.replaceSymbols(locale.taxId);
   // A GSTIN wraps the holder's PAN. Other countries have no equivalent, so they use their tax ID.
@@ -88,11 +97,23 @@ function setLocale(profile: Profile, locale: Locale, settings: AutofillSettings)
   setCity(profile, region, faker.helpers.arrayElement(region.cities));
 }
 
-export function createProfile(settings: AutofillSettings): Profile {
-  const firstName = faker.person.firstName();
-  const middleName = faker.person.middleName();
-  const lastName = faker.person.lastName();
-  const company = faker.company.name().replace(/[,.]/g, "");
+/** A profile's values as text, for use as {token} in templates. */
+export function profileTokens(profile: Profile): Record<string, string> {
+  return Object.fromEntries(PROFILE_TOKENS.map((name) => {
+    const value = profile[name];
+    return [name, value instanceof Date ? value.toLocaleDateString("en-CA") : String(value)];
+  }));
+}
+
+export const renderProfileTemplate = (template: string, profile: Profile): string =>
+  renderTemplate(template, profileTokens(profile), pickInt);
+
+function generateProfile(settings: AutofillSettings): Profile {
+  const sex = settings.gender === "any" ? faker.helpers.arrayElement(["male", "female"] as const) : settings.gender;
+  const firstName = settings.firstName || faker.person.firstName(sex);
+  const middleName = settings.includeMiddleName ? faker.person.middleName(sex) : "";
+  const lastName = settings.lastName || faker.person.lastName();
+  const company = settings.companyName || faker.company.name().replace(/[,.]/g, "");
   const emailDomain = settings.emailDomain.replace(/^@/, "").trim() || "example.com";
   const localPart = `${cleanDomainPart(firstName)}.${cleanDomainPart(lastName)}`;
   const domain = `${cleanDomainPart(company)}${normalizeSuffix(settings.domainSuffix)}`;
@@ -103,15 +124,18 @@ export function createProfile(settings: AutofillSettings): Profile {
     middleName,
     lastName,
     fullName: `${firstName} ${lastName}`,
+    gender: sex === "male" ? "Male" : "Female",
     email: `${localPart}@${emailDomain}`,
-    username: `${localPart}${pickInt(10, 99)}`,
+    username: settings.usernameMode === "name" ? `${localPart}${pickInt(10, 99)}` : `${cleanDomainPart(faker.word.noun())}${pickInt(100, 999)}`,
     // The fixed prefix meets the upper, lower, digit and symbol rules most sign-up forms enforce.
     password: `Aa1!${faker.string.alphanumeric(12)}`,
-    jobTitle: faker.person.jobTitle(),
+    jobTitle: settings.jobTitle || faker.person.jobTitle(),
+    department: settings.department || faker.commerce.department(),
     age,
     dateOfBirth: birthDateFor(age),
     experience,
     company,
+    companySize: pickInt(settings.companySizeMin, settings.companySizeMax),
     domain,
     website: `https://${domain}`,
     phone: "",
@@ -124,9 +148,26 @@ export function createProfile(settings: AutofillSettings): Profile {
     regionCode: "",
     postalCode: "",
     country: "",
-    countryCode: ""
+    countryCode: "",
+    currency: "",
+    employeeId: "",
+    customerId: "",
+    invoiceId: ""
   };
   setLocale(profile, localeByCode(settings.country), settings);
+  profile.employeeId = renderProfileTemplate(settings.employeeIdPattern, profile);
+  profile.customerId = renderProfileTemplate(settings.customerIdPattern, profile);
+  profile.invoiceId = renderProfileTemplate(settings.invoiceIdPattern, profile);
+  if (settings.passwordPattern) profile.password = renderProfileTemplate(settings.passwordPattern, profile);
+  return profile;
+}
+
+export function createProfile(settings: AutofillSettings): Profile {
+  if (!settings.reuseProfile) return generateProfile(settings);
+  faker.seed(settings.profileSeed);
+  const profile = generateProfile(settings);
+  // Everything else in the fill stays random.
+  faker.seed();
   return profile;
 }
 
@@ -159,5 +200,10 @@ export function dropdownTargets(kind: string, profile: Profile): string[] {
   if (kind === "city") return [profile.city];
   if (kind === "age") return [String(profile.age)];
   if (kind === "experience") return [String(profile.experience)];
+  if (kind === "companySize") return [String(profile.companySize)];
+  if (kind === "gender") return [profile.gender, profile.gender[0]];
+  if (kind === "currency") return [profile.currency];
+  if (kind === "department") return [profile.department];
+  if (kind === "jobTitle") return [profile.jobTitle];
   return [];
 }

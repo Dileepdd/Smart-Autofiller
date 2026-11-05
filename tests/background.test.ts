@@ -6,20 +6,19 @@ type Listener = (...args: any[]) => unknown;
 const RESULT: FillResult = { filled: 12, skipped: 3, errors: 0, unsupported: 0, details: [] };
 
 /** A stand-in for the chrome API that keeps listeners so tests can fire them. */
-function fakeChrome(stored: object = {}) {
+function fakeChrome(stored: object = {}, profiles?: object) {
   const listeners: Record<string, Listener> = {};
   const event = (name: string) => ({ addListener: (listener: Listener) => { listeners[name] = listener; } });
   const api = {
     runtime: { onInstalled: event("installed"), onStartup: event("startup") },
     storage: {
       onChanged: event("changed"),
-      local: { get: vi.fn(async () => ({ smartAutofillSettings: stored })), set: vi.fn(async () => undefined) }
+      local: { get: vi.fn(async () => ({ smartAutofillSettings: stored, smartAutofillProfiles: profiles })), set: vi.fn(async () => undefined) }
     },
     contextMenus: {
       onClicked: event("menu"),
       removeAll: vi.fn(async () => undefined),
-      create: vi.fn(),
-      update: vi.fn(async () => undefined)
+      create: vi.fn()
     },
     action: {
       onClicked: event("click"),
@@ -34,8 +33,8 @@ function fakeChrome(stored: object = {}) {
   return { api, listeners };
 }
 
-async function start(stored?: object) {
-  const chromeApi = fakeChrome(stored);
+async function start(stored?: object, profiles?: object) {
+  const chromeApi = fakeChrome(stored, profiles);
   vi.stubGlobal("chrome", chromeApi.api);
   vi.resetModules();
   await import("../src/background/index");
@@ -51,10 +50,54 @@ describe("background worker", () => {
     const { api, listeners } = await start();
 
     await listeners.installed();
-    await vi.waitFor(() => expect(api.contextMenus.create).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(api.contextMenus.create).toHaveBeenCalledTimes(3));
 
     expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "fillOnOpen", type: "checkbox", checked: true, contexts: ["action"] }));
     expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "fillExisting", type: "checkbox", checked: true, contexts: ["action"] }));
+    expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "undo", contexts: ["action"] }));
+  });
+
+  it("offers saved profiles in the menu, with the active one selected", async () => {
+    const { api, listeners } = await start({}, { profiles: [{ id: "a", name: "US Customer", overrides: {}, customRules: [] }], activeProfileId: "a" });
+
+    listeners.changed();
+
+    await vi.waitFor(() => expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "profile:a", title: "US Customer", type: "radio", checked: true })));
+    expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "profile:none", checked: false }));
+  });
+
+  it("switches profile from the menu", async () => {
+    const { api, listeners } = await start({}, { profiles: [{ id: "a", name: "A", overrides: {}, customRules: [] }], activeProfileId: null });
+
+    listeners.menu({ menuItemId: "profile:a" }, { id: 7 });
+
+    await vi.waitFor(() => expect(api.storage.local.set).toHaveBeenCalledWith({ smartAutofillProfiles: expect.objectContaining({ activeProfileId: "a" }) }));
+  });
+
+  it("fills with the active profile applied", async () => {
+    const { api, listeners } = await start({}, { profiles: [{ id: "a", name: "A", overrides: { country: "US" }, customRules: [] }], activeProfileId: "a" });
+
+    await listeners.click({ id: 7 });
+
+    expect(api.tabs.sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ settings: expect.objectContaining({ country: "US" }) }));
+  });
+
+  it("undoes from the menu and says what happened", async () => {
+    const { api, listeners } = await start();
+    api.tabs.sendMessage.mockResolvedValue({ restored: 4, notRestored: 1 } as never);
+
+    listeners.menu({ menuItemId: "undo" }, { id: 7 });
+
+    await vi.waitFor(() => expect(api.action.setTitle).toHaveBeenCalledWith({ tabId: 7, title: "Smart Autofill: Restored 4 fields. 1 could not be restored." }));
+  });
+
+  it("says when there is nothing to undo", async () => {
+    const { api, listeners } = await start();
+    api.tabs.sendMessage.mockRejectedValue(new Error("Could not establish connection"));
+
+    listeners.menu({ menuItemId: "undo" }, { id: 7 });
+
+    await vi.waitFor(() => expect(api.action.setTitle).toHaveBeenCalledWith({ tabId: 7, title: "Smart Autofill: Nothing to undo on this page." }));
   });
 
   it("saves a setting changed from the menu without losing the others", async () => {
@@ -89,7 +132,7 @@ describe("background worker", () => {
 
     listeners.changed();
 
-    await vi.waitFor(() => expect(api.contextMenus.update).toHaveBeenCalledWith("fillExisting", { checked: false }));
+    await vi.waitFor(() => expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "fillExisting", checked: false })));
   });
 
   it("fills on click and shows the count on the icon", async () => {

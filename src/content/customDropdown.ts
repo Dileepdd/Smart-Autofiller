@@ -1,4 +1,4 @@
-import { DropdownMode } from "../shared/types";
+import { SelectionMode } from "../shared/types";
 import { isInput, isVisible } from "./detector";
 import { Choice, isPlaceholder, pickChoice } from "./dropdown";
 import { waitFor } from "./waiting";
@@ -63,7 +63,7 @@ export function comboboxHasValue(trigger: HTMLElement): boolean {
  * role=option are ever clicked, so this cannot reach a submit button or other page action.
  * Returns the selected label, or undefined when nothing could be selected.
  */
-export async function fillCombobox(trigger: HTMLElement, targets: string[], query: string, mode: DropdownMode): Promise<string | undefined> {
+export async function fillCombobox(trigger: HTMLElement, targets: string[], query: string, mode: SelectionMode): Promise<string | undefined> {
   press(trigger);
   let opened = await waitFor(() => openOptions(trigger).length > 0, OPEN_TIMEOUT_MS);
 

@@ -84,31 +84,42 @@ To add a field type, add it to `FieldKind` and `RULES` in `classifier.ts`. The c
 
 Settings save automatically, persist in `chrome.storage.local` and apply on every site. There are two ways to reach them:
 
-- Right-click the toolbar icon. **Fill on icon click** and **Replace existing values** are ticks in that menu, and **Options** opens every setting.
+- Right-click the toolbar icon. **Fill on icon click** and **Replace existing values** are ticks in that menu, along with **Undo last fill** and, once you have saved one, **Test profile**. **Options** opens every setting.
 - Open **Details** on `chrome://extensions` and choose **Extension options**.
 
 By default one click on the toolbar icon fills the page, with no popup. The icon then shows how many fields were filled, or `!` if something needs attention. Hover over the icon for details.
 
 With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page**, the result counts and the settings.
 
-| Setting | Default |
+| Section | Settings |
 |---|---|
-| Email domain | `example.com` |
-| Domain suffix | `.com` |
-| Age range | 18 to 100 |
-| Experience range | 0 to 20 |
-| Country (India, United States, United Kingdom, Canada, Australia) | India |
-| Phone format | National |
-| Date format | `YYYY-MM-DD`; a text field's own placeholder, such as `dd/mm/yyyy`, takes priority |
-| Dropdowns | First valid option |
-| Replace existing values | On |
-| Fill on icon click | On |
+| Identity | Email domain, domain suffix, age and experience ranges, first and last name, middle name on or off, gender, username style, password pattern, company, department, job title |
+| Region | Country (India by default, or United States, United Kingdom, Canada, Australia), phone format, date format, currency, address format |
+| Data generation | Text style, number range, decimals, date range, company size range, and patterns for employee, customer and invoice IDs |
+| Filling behavior | Dropdown, radio, multi-select and checkbox preferences, all forms or the selected form, one-click filling, replacing values, unique repeated values, dynamic fields, same-origin iframes |
+| Custom rules | One `keyword = value` per line |
+| Saved profiles | Named sets of values, with one active at a time |
+| Advanced | Highlighting, detailed reports, reusing generated data |
+
+Leave a name, company, department or title blank for a generated one. A text field's own date placeholder, such as `dd/mm/yyyy`, takes priority over the date format. A field's own `min` and `max` take priority over the number range, and decimals only apply where the field allows them.
+
+"Selected form" means the form containing the focused field, or otherwise the form with the most fields.
+
+The fill shortcut is Alt+Shift+F, which you can change at `chrome://extensions/shortcuts`.
+
+**Undo last fill** restores text fields, selects and checkboxes. Radio buttons, custom dropdowns and calendar pickers cannot be restored safely, and the result says how many were left. Undo is lost when the page reloads.
+
+### Saved profiles
+
+A profile overrides country, email domain, age and experience ranges, names, company, department and job title. Blank values use the global setting. It can also hold its own custom rules, which are checked before the global ones. Everything else, such as dropdown preferences, stays global.
+
+Select a profile in **Saved profiles** or from the toolbar icon's right-click menu. **Save profile** creates a new profile when none is active, and otherwise updates the active one.
 
 Country sets location, phone and tax ID formats: EIN (US), PAN and GSTIN (India), VAT (UK), Business Number (Canada) and ABN (Australia).
 
 Values also adapt to the field. `maxlength`, `pattern`, `min`, `max`, `minlength` and `type="number"` are respected, and a shortened phone number keeps its local digits, so the same number appears across phone fields.
 
-Custom rules take one `keyword = value` per line, for example `employee id = EMP-1001` or `nickname = {firstName}`. Tokens are the `Profile` fields in `generators/profile.ts`. A custom rule also selects the matching option in a dropdown.
+Custom rules take one `keyword = value` per line, for example `employee id = EMP-{number:1000-9999}` or `nickname = {firstName}`. Keywords ignore case and must appear as whole words in the field's description. Tokens are listed in `shared/template.ts`. Rules take priority over generated values, and also select the matching option in a dropdown, but they can never reach a disabled, readonly or hidden field. Invalid rules are reported with their line number.
 
 ## What it leaves alone
 
@@ -124,8 +135,8 @@ Custom rules take one `keyword = value` per line, for example `employee id = EMP
 - It never submits a form. It never presses Enter.
 - In custom dropdowns and calendars it only clicks the trigger and the option or day elements. A trigger that would submit a form or follow a link receives no click.
 - If a page's own script tries to submit during a fill, the submission is stopped and reported. This cannot catch `form.submit()`, which fires no event, or forms inside shadow roots and iframes.
-- It makes no network requests and asks only for `activeTab`, `contextMenus`, `scripting` and `storage`.
-- It only reaches a page after you click the toolbar icon on that tab.
+- It makes no network requests and asks only for `activeTab`, `contextMenus`, `scripting` and `storage`. Submitting forms is not configurable.
+- It only reaches a page after you click the toolbar icon, or use the shortcut, on that tab.
 - Generated values, including passwords, never appear in the report.
 
 Filling fires the page's own `change` handlers, as typing would. A page that acts on those handlers will still act, so use this on test environments. **Replace existing values** is on by default, so a click overwrites what is in a form, including saved passwords. A site control built from plain `div`s with no recognisable header or navigation markup cannot be told apart from a form field.
@@ -163,7 +174,8 @@ These are local test pages, not a guarantee for every site.
 - A custom dropdown's placeholder is only recognised when it reads like "Select…" or "Choose…". Other placeholder text can look like a value, so that dropdown is skipped.
 - Location data covers a few regions and cities per country. An unsupported country selected by a page keeps its name, while other location fields stay as generated.
 - Names come from Faker's English data for every country.
-- Tax IDs match each country's format but are not checksum-valid. They are test data, not real identifiers.
+- Tax IDs match each country's format but are not checksum-valid. They are test data, not real identifiers, and may fail a validator that checks them properly.
+- Postal codes come from a small built-in list, so they are real for the city but few in number.
 - A `type="number"` field cannot hold letters, so UK and Canadian postal codes there are reduced to their digits.
 - A disabled list that never loads adds up to 2.5 seconds to a fill. Dropdowns that never open cost up to 2 seconds each, capped at 20 seconds per pass.
 - The extension cannot run on Chrome internal pages or the Chrome Web Store.

@@ -146,13 +146,16 @@ export class Extension {
 
   /** Runs the toolbar button for this page's tab, which is what grants activeTab, and opens the real popup. */
   async clickToolbarIcon(page: Page): Promise<Popup> {
-    await this.triggerAction(page);
-
-    const deadline = Date.now() + POPUP_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      const popup = await this.popupTarget();
-      if (popup) return Popup.connect(popup.webSocketDebuggerUrl, async () => (await this.popupTarget()) !== undefined);
-      await sleep(POLL_MS);
+    // Chrome can ignore a click that lands while the previous popup is still closing, which
+    // only automation is fast enough to do, so a second attempt is allowed.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await this.triggerAction(page);
+      const deadline = Date.now() + POPUP_TIMEOUT_MS / 2;
+      while (Date.now() < deadline) {
+        const popup = await this.popupTarget();
+        if (popup) return Popup.connect(popup.webSocketDebuggerUrl, async () => (await this.popupTarget()) !== undefined);
+        await sleep(POLL_MS);
+      }
     }
     throw new Error("The popup did not open.");
   }
@@ -191,6 +194,11 @@ export class Extension {
   /** Most tests set rules in the popup and check that values are kept, so they use the popup mode. */
   async clearSettings(): Promise<void> {
     await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false, fillExisting: false } })", true);
+  }
+
+  /** Saves settings as an older version of the extension would have left them. */
+  async useStoredSettings(stored: object): Promise<void> {
+    await this.writeStorage(`chrome.storage.local.set({ smartAutofillSettings: ${JSON.stringify(stored)} })`, false);
   }
 
   /** A first-run user, with nothing saved. */

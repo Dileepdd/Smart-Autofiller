@@ -1,4 +1,4 @@
-import { AutofillSettings, FillResult } from "./types";
+import { AutofillSettings, FillResult, UndoResult } from "./types";
 
 /** Runs a fill in a tab this extension has been granted, through a toolbar click. */
 export async function fillTab(tabId: number, settings: AutofillSettings): Promise<FillResult> {
@@ -7,6 +7,21 @@ export async function fillTab(tabId: number, settings: AutofillSettings): Promis
   if (!response) throw new Error("The page did not respond. Try reloading it.");
   return response;
 }
+
+/** Asks the tab to restore the values from before its last fill. */
+export async function undoFill(tabId: number): Promise<UndoResult> {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: "SMART_AUTOFILL_UNDO" }) as UndoResult;
+  } catch {
+    // Nothing is listening, so this page has not been filled since it loaded.
+    return { restored: 0, notRestored: 0 };
+  }
+}
+
+export const undoMessage = ({ restored, notRestored }: UndoResult): string => {
+  if (!restored && !notRestored) return "Nothing to undo on this page.";
+  return notRestored ? `Restored ${restored} fields. ${notRestored} could not be restored.` : `Restored ${restored} fields.`;
+};
 
 export function fillErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "Could not fill this page.";

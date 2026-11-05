@@ -1,0 +1,29 @@
+<!doctype html>
+<html><body>
+<form id="main">
+  <div><label for="fullName">Full Name</label><input id="fullName"></div>
+  <div><label for="email">Email</label><input id="email"></div>
+  <div><label for="company">Company Name</label><input id="company"></div>
+  <div><label for="employeeId">Employee ID</label><input id="employeeId"></div>
+  <div><label for="grade">Grade</label><input id="grade"></div>
+  <div><label for="country">Country</label>
+    <select id="country"><option value="">Choose</option><option>Canada</option><option>India</option><option>United States</option></select></div>
+  <div>
+    <label><input type="radio" name="gender" id="male" value="m"> Male</label>
+    <label><input type="radio" name="gender" id="female" value="f"> Female</label>
+  </div>
+  <div><label for="skills">Skills</label><select id="skills" multiple><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+  <div><label><input type="checkbox" id="news"> Newsletter</label></div>
+</form>
+<form id="other"><div><label for="otherEmail">Email</label><input id="otherEmail"></div></form>
+<script>
+  const value = (id) => document.getElementById(id).value;
+  window.__state = () => ({
+    fullName: value("fullName"), email: value("email"), company: value("company"), employeeId: value("employeeId"), grade: value("grade"),
+    country: value("country"), otherEmail: value("otherEmail"),
+    female: document.getElementById("female").checked,
+    skills: [...document.getElementById("skills").selectedOptions].length,
+    news: document.getElementById("news").checked
+  });
+</script>
+</body></html>

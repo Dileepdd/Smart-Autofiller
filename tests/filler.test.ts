@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { collectFields, isDisabled, isVisible } from "../src/content/detector";
 import { fillPage } from "../src/content/filler";
+import { undoLastFill } from "../src/content/undo";
 import { find, render, settingsWith } from "./helpers";
 
 type FormField = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
@@ -251,6 +252,38 @@ describe("fillPage dropdowns", () => {
     expect(selected()).toBe("p");
   });
 
+  it("ignores the profile when set to first valid", async () => {
+    render('<label for="field">Country</label><select id="field"><option value="">Choose</option><option>Canada</option><option>India</option></select>');
+
+    await fillPage(settingsWith({ country: "IN", dropdownMode: "first" }));
+
+    expect(selected()).toBe("Canada");
+  });
+
+  it("still follows a custom rule when set to first valid", async () => {
+    render('<label for="field">Plan</label><select id="field"><option value="">Choose</option><option>Free</option><option>Pro</option></select>');
+
+    await fillPage(settingsWith({ dropdownMode: "first", customRules: [{ match: "plan", value: "Pro" }] }));
+
+    expect(selected()).toBe("Pro");
+  });
+
+  it("matches a number to a range option", async () => {
+    render('<label for="field">Company Size</label><select id="field"><option value="">Choose</option><option>1-10</option><option>11-50</option><option>51+</option></select>');
+
+    await fillPage(settingsWith({ companySizeMin: 30, companySizeMax: 30 }));
+
+    expect(selected()).toBe("11-50");
+  });
+
+  it("selects several options when asked", async () => {
+    render('<select id="field" multiple><option>A</option><option>B</option><option>C</option><option>D</option></select>');
+
+    await fillPage(settingsWith({ multiSelectMode: "multiple" }));
+
+    expect(Array.from(find<HTMLSelectElement>("#field").options).filter((option) => option.selected)).toHaveLength(3);
+  });
+
   it("selects a value in a multiple select", async () => {
     render('<select id="field" multiple><option value="a">A</option><option value="b">B</option></select>');
 
@@ -427,7 +460,7 @@ describe("fillPage custom dropdowns", () => {
 
   it("treats a zero-width space as empty, as MUI renders in an empty select", async () => {
     renderCombobox(["India"]);
-    find<HTMLElement>("#field").innerHTML = "<span>​</span>";
+    find<HTMLElement>("#field").innerHTML = "<span>\u200b</span>";
 
     await fillPage(settingsWith({ country: "IN" }));
 
@@ -570,17 +603,244 @@ describe("fillPage checkboxes and radios", () => {
     expect(find("#b").checked).toBe(true);
   });
 
-  it("uses the dropdown mode for radios", async () => {
+  it("uses the radio setting", async () => {
     render('<input id="a" type="radio" name="g"><input id="b" type="radio" name="g">');
     vi.spyOn(Math, "random").mockReturnValue(0.99);
 
-    await fillPage(settingsWith({ dropdownMode: "random" }));
+    await fillPage(settingsWith({ radioMode: "random" }));
 
     expect(find("#b").checked).toBe(true);
+  });
+
+  it("matches a radio to the profile by its label", async () => {
+    render(`
+      <label><input id="m" type="radio" name="gender" value="1"> Male</label>
+      <label><input id="f" type="radio" name="gender" value="2"> Female</label>
+    `);
+
+    await fillPage(settingsWith({ gender: "female" }));
+
+    expect(find("#f").checked).toBe(true);
+  });
+
+  it("ignores the profile when radios are set to first valid", async () => {
+    render(`
+      <label><input id="m" type="radio" name="gender" value="1"> Male</label>
+      <label><input id="f" type="radio" name="gender" value="2"> Female</label>
+    `);
+
+    await fillPage(settingsWith({ gender: "female", radioMode: "first" }));
+
+    expect(find("#m").checked).toBe(true);
+  });
+
+  it("ticks every checkbox when set to all", async () => {
+    render('<input id="a" type="checkbox"><input id="b" type="checkbox" required>');
+
+    await fillPage(settingsWith({ checkboxMode: "all" }));
+
+    expect(find("#a").checked).toBe(true);
+    expect(find("#b").checked).toBe(true);
+  });
+
+  it("ticks nothing when set to none, even if required", async () => {
+    render('<input id="a" type="checkbox" required>');
+
+    await fillPage(settingsWith({ checkboxMode: "none" }));
+
+    expect(find("#a").checked).toBe(false);
+  });
+});
+
+describe("fillPage scope", () => {
+  const twoForms = '<form id="one"><input id="a" name="email"></form><form id="two"><input id="b" name="email"><input id="c" name="city"></form>';
+
+  it("fills every form by default", async () => {
+    render(twoForms);
+
+    await fillPage(settingsWith());
+
+    expect(find("#a").value).not.toBe("");
+    expect(find("#b").value).not.toBe("");
+  });
+
+  it("uses one profile across forms", async () => {
+    render(twoForms);
+
+    await fillPage(settingsWith());
+
+    expect(find("#a").value).toBe(find("#b").value);
+  });
+
+  it("fills only the focused form when asked", async () => {
+    render(twoForms);
+    find("#a").focus();
+
+    await fillPage(settingsWith({ fillScope: "form" }));
+
+    expect(find("#a").value).not.toBe("");
+    expect(find("#b").value).toBe("");
+  });
+
+  it("falls back to the largest form with nothing focused", async () => {
+    render(twoForms);
+
+    await fillPage(settingsWith({ fillScope: "form" }));
+
+    expect(find("#a").value).toBe("");
+    expect(find("#b").value).not.toBe("");
+  });
+
+  it("fills the page when it has no form to select", async () => {
+    render('<input id="a" name="email">');
+
+    await fillPage(settingsWith({ fillScope: "form" }));
+
+    expect(find("#a").value).not.toBe("");
+  });
+
+  it("leaves iframes out when asked", () => {
+    render('<input id="a"><iframe id="frame"></iframe>');
+    const frame = document.implementation.createHTMLDocument();
+    frame.body.innerHTML = '<input id="b">';
+    Object.defineProperty(find<HTMLIFrameElement>("#frame"), "contentDocument", { value: frame });
+
+    const ids = collectFields(document, { includeFrames: false, scope: "all" }).map(({ id }) => id);
+
+    expect(ids).toEqual(["a"]);
+  });
+});
+
+describe("fillPage repeated fields", () => {
+  it("repeats the profile's value by default", async () => {
+    render('<div><input id="a" name="email"></div><div><input id="b" name="email"></div>');
+
+    await fillPage(settingsWith());
+
+    expect(find("#a").value).toBe(find("#b").value);
+  });
+
+  it("makes repeats unique when asked", async () => {
+    render('<div><input id="a" name="email"></div><div><input id="b" name="email"></div>');
+
+    await fillPage(settingsWith({ uniqueValues: true }));
+
+    expect(find("#a").value).not.toBe(find("#b").value);
+  });
+
+  it("keeps confirmation fields matching even when unique", async () => {
+    render('<div><input id="a" name="email"></div><div><input id="b" name="confirmEmail"></div>');
+
+    await fillPage(settingsWith({ uniqueValues: true }));
+
+    expect(find("#a").value).toBe(find("#b").value);
+  });
+});
+
+describe("fillPage excluded values", () => {
+  it("skips a middle name field when middle names are excluded", async () => {
+    render('<input id="field" name="middleName">');
+
+    const result = await fillPage(settingsWith({ includeMiddleName: false }));
+
+    expect(find("#field").value).toBe("");
+    expect(result).toMatchObject({ filled: 0, skipped: 1, errors: 0 });
+  });
+});
+
+describe("fillPage reports", () => {
+  it("lists filled and skipped fields without their values", async () => {
+    render('<div><input id="a" name="email"></div><div><input id="b" name="city" value="keep"></div>');
+
+    const result = await fillPage(settingsWith({ detailedReport: true }));
+
+    expect(result.details).toEqual(["Filled: email a", "Skipped: city b"]);
+    expect(result.details.join()).not.toContain("@");
+  });
+
+  it("stays brief by default", async () => {
+    render('<input id="a" name="email">');
+
+    expect((await fillPage(settingsWith())).details).toEqual([]);
+  });
+
+  it("highlights filled fields briefly and restores their style", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"], shouldAdvanceTime: true });
+    render('<input id="a" name="email" style="outline: 1px solid red">');
+
+    await fillPage(settingsWith({ highlightFilled: true }));
+    expect(find("#a").style.outline).toContain("#1e8e3e");
+
+    vi.advanceTimersByTime(2000);
+    vi.useRealTimers();
+    expect(find("#a").style.outline).toContain("red");
+  });
+
+  it("does not highlight by default", async () => {
+    render('<input id="a" name="email">');
+
+    await fillPage(settingsWith());
+
+    expect(find("#a").style.outline).toBe("");
+  });
+});
+
+describe("undoLastFill", () => {
+  it("restores text, selects and checkboxes", async () => {
+    render(`
+      <div><input id="text" name="email" value="old@me.test"></div>
+      <div><label for="s">Country</label><select id="s"><option>Canada</option><option>India</option></select></div>
+      <input id="c" type="checkbox" required>
+    `);
+    await fillPage(settingsWith({ fillExisting: true, country: "IN" }));
+    expect(find("#text").value).not.toBe("old@me.test");
+
+    expect(undoLastFill()).toEqual({ restored: 3, notRestored: 0 });
+
+    expect(find("#text").value).toBe("old@me.test");
+    expect(find<HTMLSelectElement>("#s").value).toBe("Canada");
+    expect(find("#c").checked).toBe(false);
+  });
+
+  it("fires events so frameworks see the restored value", async () => {
+    render('<input id="a" name="email">');
+    await fillPage(settingsWith());
+    const inputs = vi.fn();
+    find("#a").addEventListener("input", inputs);
+
+    undoLastFill();
+
+    expect(inputs).toHaveBeenCalledOnce();
+  });
+
+  it("counts controls it cannot safely restore", async () => {
+    render('<input id="a" type="radio" name="g">');
+    await fillPage(settingsWith());
+
+    expect(undoLastFill()).toEqual({ restored: 0, notRestored: 1 });
+  });
+
+  it("has nothing to do a second time", async () => {
+    render('<input id="a" name="email">');
+    await fillPage(settingsWith());
+    undoLastFill();
+
+    expect(undoLastFill()).toEqual({ restored: 0, notRestored: 0 });
   });
 });
 
 describe("fillPage dynamic forms", () => {
+  it("does not wait or rescan when dynamic detection is off", async () => {
+    render('<div><label for="type">Account type</label><select id="type"><option value="">Choose</option><option>Business</option></select></div>');
+    find<HTMLSelectElement>("#type").addEventListener("change", () => {
+      document.body.insertAdjacentHTML("beforeend", '<div><input id="tax" name="taxId"></div>');
+    });
+
+    await fillPage(settingsWith({ detectDynamic: false }));
+
+    expect(find("#tax").value).toBe("");
+  });
+
   it("fills fields revealed by an earlier selection", async () => {
     render('<div><label for="type">Account type</label><select id="type"><option value="">Choose</option><option>Business</option></select></div>');
     find<HTMLSelectElement>("#type").addEventListener("change", () => {
@@ -831,6 +1091,18 @@ describe("fillPage safety", () => {
 
     for (const id of ["card", "cvv", "otp", "search"]) expect(find(`#${id}`).value).toBe("");
     expect(result).toMatchObject({ filled: 0, skipped: 4 });
+  });
+
+  it.each([
+    ['<input id="field" name="grade" disabled>'],
+    ['<input id="field" name="grade" readonly>'],
+    ['<input id="field" name="grade" style="display: none">']
+  ])("never lets a custom rule reach %s", async (html) => {
+    render(html);
+
+    await fillPage(settingsWith({ customRules: [{ match: "grade", value: "L4" }] }));
+
+    expect(find("#field").value).toBe("");
   });
 
   it("lets a custom rule fill a field that would otherwise be skipped", async () => {

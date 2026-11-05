@@ -1,9 +1,13 @@
-import { DropdownMode } from "../shared/types";
+import { MultiSelectMode, SelectionMode } from "../shared/types";
 
 export interface Choice {
   label: string;
   value: string;
 }
+
+const MAX_MULTIPLE = 3;
+const RANGE = /(\d[\d,]*)\s*(?:-|–|to)\s*(\d[\d,]*)/i;
+const OPEN_RANGE = /(\d[\d,]*)\s*\+/;
 
 const PLACEHOLDER = /^(-{2,}|(please\s+)?(select|choose|pick)\b)/i;
 
@@ -25,21 +29,40 @@ export function hasSelection(select: HTMLSelectElement): boolean {
   return Boolean(option) && option.value.trim() !== "" && !option.disabled && !isPlaceholder(option.text);
 }
 
+const toNumber = (text: string): number => Number(text.replace(/,/g, ""));
+
+/** True for an option such as "11-50" or "500+" that covers the number. */
+function coversNumber(label: string, number: number): boolean {
+  const range = RANGE.exec(label);
+  if (range) return number >= toNumber(range[1]) && number <= toNumber(range[2]);
+  const open = OPEN_RANGE.exec(label);
+  return open !== null && number >= toNumber(open[1]);
+}
+
 function matchTarget<T extends Choice>(choices: T[], target: string): T | undefined {
   const wanted = normalize(target);
   if (!wanted) return undefined;
   const exact = choices.find(({ label, value }) => normalize(label) === wanted || normalize(value) === wanted);
-  if (exact || wanted.length < 3) return exact;
-  return choices.find(({ label }) => normalize(label).includes(wanted));
+  if (exact) return exact;
+  if (/^\d+$/.test(wanted)) return choices.find(({ label }) => coversNumber(label, Number(wanted)));
+  return wanted.length < 3 ? undefined : choices.find(({ label }) => normalize(label).includes(wanted));
 }
 
-/** Prefers a choice matching a target, in target order, then falls back to the configured mode. */
-export function pickChoice<T extends Choice>(choices: T[], targets: string[], mode: DropdownMode): T | undefined {
-  for (const target of targets) {
-    const match = matchTarget(choices, target);
-    if (match) return match;
+/** In match mode, prefers a choice matching a target, in target order, before the first valid one. */
+export function pickChoice<T extends Choice>(choices: T[], targets: string[], mode: SelectionMode): T | undefined {
+  if (mode === "match") {
+    for (const target of targets) {
+      const match = matchTarget(choices, target);
+      if (match) return match;
+    }
   }
   return mode === "random" ? choices[Math.floor(Math.random() * choices.length)] : choices[0];
+}
+
+export function pickMany<T extends Choice>(choices: T[], mode: MultiSelectMode): T[] {
+  if (mode === "multiple") return choices.slice(0, MAX_MULTIPLE);
+  const choice = pickChoice(choices, [], mode);
+  return choice ? [choice] : [];
 }
 
 export const toChoice = (option: HTMLOptionElement): Choice & { option: HTMLOptionElement } =>

@@ -26,6 +26,7 @@
         <div><dt>Unsupported</dt><dd id="countUnsupported">0</dd></div>
       </dl>
       <ul id="details" class="details" hidden></ul>
+      <button id="undoButton" class="secondary" type="button" hidden>Undo fill</button>
     </div>
     <footer class="foot">Runs locally. Forms are never submitted.</footer>
   </div>
@@ -41,67 +42,178 @@
     <form id="settingsForm" class="settings">
       <p id="settingsError" class="error" role="alert" hidden></p>
 
-      <h2>Identity</h2>
-      <div class="row"><label for="emailDomain">Email domain</label><input id="emailDomain" type="text" placeholder="sample.com" /></div>
-      <div class="row"><label for="domainSuffix">Domain suffix</label>
-        <select id="domainSuffix">
-          <option value=".com">.com</option>
-          <option value=".net">.net</option>
-          <option value=".org">.org</option>
-          <option value=".io">.io</option>
-          <option value=".co">.co</option>
-        </select>
-      </div>
-      <div class="row"><span id="ageLabel">Age</span>
-        <div class="range" role="group" aria-labelledby="ageLabel">
-          <input id="ageMin" type="number" min="0" max="120" aria-label="Minimum age" /><span>to</span>
-          <input id="ageMax" type="number" min="0" max="120" aria-label="Maximum age" />
+      <details open>
+        <summary>Identity</summary>
+        <div class="row"><label for="emailDomain">Email domain</label><input id="emailDomain" data-setting type="text" placeholder="sample.com" /></div>
+        <div class="row"><label for="domainSuffix">Domain suffix</label>
+          <select id="domainSuffix" data-setting>
+            <option value=".com">.com</option><option value=".net">.net</option><option value=".org">.org</option>
+            <option value=".io">.io</option><option value=".co">.co</option>
+          </select>
         </div>
-      </div>
-      <div class="row"><span id="experienceLabel">Experience</span>
-        <div class="range" role="group" aria-labelledby="experienceLabel">
-          <input id="experienceMin" type="number" min="0" max="80" aria-label="Minimum experience" /><span>to</span>
-          <input id="experienceMax" type="number" min="0" max="80" aria-label="Maximum experience" />
+        <div class="row"><span id="ageLabel">Age</span>
+          <div class="range" role="group" aria-labelledby="ageLabel">
+            <input id="ageMin" data-setting type="number" min="0" max="120" aria-label="Minimum age" /><span>to</span>
+            <input id="ageMax" data-setting type="number" min="0" max="120" aria-label="Maximum age" />
+          </div>
         </div>
-      </div>
+        <div class="row"><span id="experienceLabel">Experience</span>
+          <div class="range" role="group" aria-labelledby="experienceLabel">
+            <input id="experienceMin" data-setting type="number" min="0" max="80" aria-label="Minimum experience" /><span>to</span>
+            <input id="experienceMax" data-setting type="number" min="0" max="80" aria-label="Maximum experience" />
+          </div>
+        </div>
+        <div class="row"><label for="firstName">First name</label><input id="firstName" data-setting type="text" placeholder="Random" /></div>
+        <div class="row"><label for="lastName">Last name</label><input id="lastName" data-setting type="text" placeholder="Random" /></div>
+        <div class="row"><label for="gender">Gender</label>
+          <select id="gender" data-setting><option value="any">Any</option><option value="male">Male</option><option value="female">Female</option></select>
+        </div>
+        <div class="row"><label for="usernameMode">Username</label>
+          <select id="usernameMode" data-setting><option value="name">Based on name</option><option value="random">Random</option></select>
+        </div>
+        <div class="row"><label for="passwordPattern">Password</label><input id="passwordPattern" data-setting type="text" placeholder="Random" /></div>
+        <div class="row"><label for="companyName">Company</label><input id="companyName" data-setting type="text" placeholder="Random" /></div>
+        <div class="row"><label for="department">Department</label><input id="department" data-setting type="text" placeholder="Random" /></div>
+        <div class="row"><label for="jobTitle">Job title</label><input id="jobTitle" data-setting type="text" placeholder="Random" /></div>
+        <label class="check"><input id="includeMiddleName" data-setting type="checkbox" /> Fill middle name fields</label>
+      </details>
 
-      <h2>Region</h2>
-      <div class="row"><label for="country">Country</label>
-        <select id="country">
-          <option value="IN">India</option>
-          <option value="US">United States</option>
-          <option value="GB">United Kingdom</option>
-          <option value="CA">Canada</option>
-          <option value="AU">Australia</option>
-        </select>
-      </div>
-      <div class="row"><label for="phoneFormat">Phone format</label>
-        <select id="phoneFormat">
-          <option value="national">National</option>
-          <option value="international">International</option>
-        </select>
-      </div>
-      <div class="row"><label for="dateFormat">Date format</label>
-        <select id="dateFormat">
-          <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-          <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-          <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-        </select>
-      </div>
+      <details>
+        <summary>Region</summary>
+        <div class="row"><label for="country">Country</label>
+          <select id="country" data-setting>
+            <option value="IN">India</option><option value="US">United States</option><option value="GB">United Kingdom</option>
+            <option value="CA">Canada</option><option value="AU">Australia</option>
+          </select>
+        </div>
+        <div class="row"><label for="phoneFormat">Phone format</label>
+          <select id="phoneFormat" data-setting><option value="national">National</option><option value="international">International</option></select>
+        </div>
+        <div class="row"><label for="dateFormat">Date format</label>
+          <select id="dateFormat" data-setting>
+            <option value="YYYY-MM-DD">YYYY-MM-DD</option><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option>
+          </select>
+        </div>
+        <div class="row"><label for="currency">Currency</label>
+          <select id="currency" data-setting>
+            <option value="auto">From country</option><option value="INR">INR</option><option value="USD">USD</option>
+            <option value="GBP">GBP</option><option value="CAD">CAD</option><option value="AUD">AUD</option>
+          </select>
+        </div>
+        <div class="row"><label for="addressFormat">Address</label>
+          <select id="addressFormat" data-setting><option value="standard">Standard</option><option value="international">International (adds country)</option></select>
+        </div>
+      </details>
 
-      <h2>Filling</h2>
-      <div class="row"><label for="dropdownMode">Dropdowns</label>
-        <select id="dropdownMode">
-          <option value="first">First valid option</option>
-          <option value="random">Random valid option</option>
-        </select>
-      </div>
-      <label class="check"><input id="fillOnOpen" type="checkbox" /> Fill on icon click, without this popup</label>
-      <label class="check"><input id="fillExisting" type="checkbox" /> Replace existing values</label>
+      <details>
+        <summary>Data generation</summary>
+        <div class="row"><label for="textMode">Text</label>
+          <select id="textMode" data-setting><option value="realistic">Realistic</option><option value="random">Random</option></select>
+        </div>
+        <div class="row"><span id="numberLabel">Numbers</span>
+          <div class="range" role="group" aria-labelledby="numberLabel">
+            <input id="numberMin" data-setting type="number" aria-label="Minimum number" /><span>to</span>
+            <input id="numberMax" data-setting type="number" aria-label="Maximum number" />
+          </div>
+        </div>
+        <div class="row"><label for="decimalPrecision">Decimals</label>
+          <select id="decimalPrecision" data-setting><option value="0">0</option><option value="2">2</option><option value="4">4</option></select>
+        </div>
+        <div class="row"><label for="dateStart">Dates from</label><input id="dateStart" data-setting type="date" /></div>
+        <div class="row"><label for="dateEnd">Dates to</label><input id="dateEnd" data-setting type="date" /></div>
+        <div class="row"><span id="sizeLabel">Company size</span>
+          <div class="range" role="group" aria-labelledby="sizeLabel">
+            <input id="companySizeMin" data-setting type="number" min="1" aria-label="Minimum company size" /><span>to</span>
+            <input id="companySizeMax" data-setting type="number" min="1" aria-label="Maximum company size" />
+          </div>
+        </div>
+        <div class="row"><label for="employeeIdPattern">Employee ID</label><input id="employeeIdPattern" data-setting type="text" /></div>
+        <div class="row"><label for="customerIdPattern">Customer ID</label><input id="customerIdPattern" data-setting type="text" /></div>
+        <div class="row"><label for="invoiceIdPattern">Invoice ID</label><input id="invoiceIdPattern" data-setting type="text" /></div>
+      </details>
 
-      <h2><label for="customRules">Custom rules</label></h2>
-      <textarea id="customRules" rows="4" spellcheck="false" placeholder="employee id = EMP-1001&#10;nickname = {firstName}"></textarea>
-      <p class="hint">One <code>keyword = value</code> per line.</p>
+      <details>
+        <summary>Filling behavior</summary>
+        <div class="row"><label for="dropdownMode">Dropdowns</label>
+          <select id="dropdownMode" data-setting>
+            <option value="match">Match profile</option><option value="first">First valid</option><option value="random">Random valid</option>
+          </select>
+        </div>
+        <div class="row"><label for="radioMode">Radio buttons</label>
+          <select id="radioMode" data-setting>
+            <option value="match">Match profile</option><option value="first">First valid</option><option value="random">Random valid</option>
+          </select>
+        </div>
+        <div class="row"><label for="multiSelectMode">Multi-select</label>
+          <select id="multiSelectMode" data-setting>
+            <option value="first">First valid</option><option value="random">Random valid</option><option value="multiple">Select several</option>
+          </select>
+        </div>
+        <div class="row"><label for="checkboxMode">Checkboxes</label>
+          <select id="checkboxMode" data-setting>
+            <option value="required">Required only</option><option value="all">All</option><option value="none">None</option>
+          </select>
+        </div>
+        <div class="row"><label for="fillScope">Fill</label>
+          <select id="fillScope" data-setting><option value="all">All forms on the page</option><option value="form">Selected form only</option></select>
+        </div>
+        <label class="check"><input id="fillOnOpen" data-setting type="checkbox" /> Fill on icon click, without this popup</label>
+        <label class="check"><input id="fillExisting" data-setting type="checkbox" /> Replace existing values</label>
+        <label class="check"><input id="uniqueValues" data-setting type="checkbox" /> Unique values in repeated fields</label>
+        <label class="check"><input id="detectDynamic" data-setting type="checkbox" /> Fill fields that appear during a fill</label>
+        <label class="check"><input id="includeFrames" data-setting type="checkbox" /> Include same-origin iframes</label>
+      </details>
+
+      <details>
+        <summary>Custom rules</summary>
+        <textarea id="customRules" data-setting rows="4" spellcheck="false" aria-label="Custom rules" placeholder="employee id = EMP-{number:1000-9999}&#10;department = Engineering"></textarea>
+        <p class="hint">One <code>keyword = value</code> per line. Use <code>{firstName}</code> or <code>{number:1-9}</code> in values.</p>
+      </details>
+
+      <details id="profilesSection">
+        <summary>Saved profiles</summary>
+        <div class="row"><label for="activeProfile">Active profile</label><select id="activeProfile"></select></div>
+        <p class="hint">A profile replaces the values below during a fill. Blank means the global setting is used.</p>
+        <div class="row"><label for="profileName">Name</label><input id="profileName" type="text" placeholder="Indian Employee" /></div>
+        <div class="row"><label for="profileCountry">Country</label>
+          <select id="profileCountry" data-profile="country">
+            <option value="">Global</option><option value="IN">India</option><option value="US">United States</option>
+            <option value="GB">United Kingdom</option><option value="CA">Canada</option><option value="AU">Australia</option>
+          </select>
+        </div>
+        <div class="row"><label for="profileEmailDomain">Email domain</label><input id="profileEmailDomain" data-profile="emailDomain" type="text" /></div>
+        <div class="row"><span id="profileAgeLabel">Age</span>
+          <div class="range" role="group" aria-labelledby="profileAgeLabel">
+            <input data-profile="ageMin" type="number" aria-label="Profile minimum age" /><span>to</span>
+            <input data-profile="ageMax" type="number" aria-label="Profile maximum age" />
+          </div>
+        </div>
+        <div class="row"><span id="profileExperienceLabel">Experience</span>
+          <div class="range" role="group" aria-labelledby="profileExperienceLabel">
+            <input data-profile="experienceMin" type="number" aria-label="Profile minimum experience" /><span>to</span>
+            <input data-profile="experienceMax" type="number" aria-label="Profile maximum experience" />
+          </div>
+        </div>
+        <div class="row"><label for="profileFirstName">First name</label><input id="profileFirstName" data-profile="firstName" type="text" /></div>
+        <div class="row"><label for="profileLastName">Last name</label><input id="profileLastName" data-profile="lastName" type="text" /></div>
+        <div class="row"><label for="profileCompany">Company</label><input id="profileCompany" data-profile="companyName" type="text" /></div>
+        <div class="row"><label for="profileDepartment">Department</label><input id="profileDepartment" data-profile="department" type="text" /></div>
+        <div class="row"><label for="profileJobTitle">Job title</label><input id="profileJobTitle" data-profile="jobTitle" type="text" /></div>
+        <textarea id="profileRules" rows="3" spellcheck="false" aria-label="Profile custom values" placeholder="grade = L4"></textarea>
+        <p id="profileError" class="error" role="alert" hidden></p>
+        <div class="actions">
+          <button id="saveProfile" class="secondary" type="button">Save profile</button>
+          <button id="deleteProfile" class="secondary" type="button" hidden>Delete</button>
+        </div>
+      </details>
+
+      <details>
+        <summary>Advanced</summary>
+        <label class="check"><input id="highlightFilled" data-setting type="checkbox" /> Highlight filled fields briefly</label>
+        <label class="check"><input id="detailedReport" data-setting type="checkbox" /> Show a detailed fill report</label>
+        <label class="check"><input id="reuseProfile" data-setting type="checkbox" /> Reuse the same generated data on every click</label>
+        <p class="hint">Turn reuse off and on again for new data. The fill shortcut is Alt+Shift+F; change it at <code>chrome://extensions/shortcuts</code>.</p>
+      </details>
     </form>
   </div>
   <script src="popup.js"></script>

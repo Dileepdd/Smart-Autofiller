@@ -217,9 +217,10 @@ test.describe("the real extension", () => {
     await options.waitForFunction("document.getElementById('emailDomain').value !== ''");
 
     expect(await options.inputValue("#country")).toBe("IN");
-    expect(await options.inputValue("#dropdownMode")).toBe("first");
+    expect(await options.inputValue("#dropdownMode")).toBe("match");
     expect(await options.isChecked("#fillExisting")).toBe(true);
     expect(await options.isChecked("#fillOnOpen")).toBe(true);
+    expect(await options.inputValue("#checkboxMode")).toBe("required");
     await options.close();
   });
 

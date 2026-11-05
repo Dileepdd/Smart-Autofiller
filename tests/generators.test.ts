@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { findCity, findLocale, LOCALES } from "../src/generators/locales";
-import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets } from "../src/generators/profile";
+import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, profileTokens } from "../src/generators/profile";
 import { customRuleValue, dateCandidates, GeneratedKind, generateValue } from "../src/generators/values";
+import { PROFILE_TOKENS } from "../src/shared/template";
 import { AutofillSettings } from "../src/shared/types";
 import { find, render, settingsWith } from "./helpers";
 
@@ -295,6 +296,177 @@ describe("field constraints", () => {
   });
 });
 
+describe("identity settings", () => {
+  it("uses a custom first and last name everywhere they appear", () => {
+    const profile = createProfile(settingsWith({ firstName: "Dileep", lastName: "Kumar", emailDomain: "sample.com" }));
+    expect(profile).toMatchObject({ firstName: "Dileep", lastName: "Kumar", fullName: "Dileep Kumar", email: "dileep.kumar@sample.com" });
+    expect(profile.username).toMatch(/^dileep\.kumar\d+$/);
+  });
+
+  it("leaves the middle name empty when excluded", () => {
+    expect(createProfile(settingsWith({ includeMiddleName: false })).middleName).toBe("");
+  });
+
+  it.each([["male", "Male"], ["female", "Female"]] as const)("follows the %s gender setting", (gender, label) => {
+    expect(createProfile(settingsWith({ gender })).gender).toBe(label);
+  });
+
+  it("picks a gender when set to any", () => {
+    expect(["Male", "Female"]).toContain(createProfile(settingsWith()).gender);
+  });
+
+  it("makes a random username unrelated to the name", () => {
+    const profile = createProfile(settingsWith({ usernameMode: "random", firstName: "Dileep" }));
+    expect(profile.username).not.toContain("dileep");
+    expect(profile.username).toMatch(/^[a-z0-9]+\d{3}$/);
+  });
+
+  it("builds the password from a pattern", () => {
+    expect(createProfile(settingsWith({ passwordPattern: "Test@{number:1000-9999}" })).password).toMatch(/^Test@\d{4}$/);
+  });
+
+  it("derives the domain and website from a custom company", () => {
+    const profile = createProfile(settingsWith({ companyName: "Acme Technologies", domainSuffix: ".io" }));
+    expect(profile).toMatchObject({ company: "Acme Technologies", domain: "acmetechnologies.io", website: "https://acmetechnologies.io" });
+  });
+
+  it("uses a custom job title and department", () => {
+    expect(createProfile(settingsWith({ jobTitle: "QA Lead", department: "Engineering" }))).toMatchObject({ jobTitle: "QA Lead", department: "Engineering" });
+  });
+});
+
+describe("region settings", () => {
+  it.each([["IN", "INR"], ["US", "USD"], ["GB", "GBP"], ["CA", "CAD"], ["AU", "AUD"]] as const)("uses %s's currency by default", (country, currency) => {
+    expect(createProfile(settingsWith({ country })).currency).toBe(currency);
+  });
+
+  it("lets a chosen currency override the country", () => {
+    expect(createProfile(settingsWith({ country: "IN", currency: "USD" })).currency).toBe("USD");
+  });
+
+  it("follows a country the page selects, unless a currency is chosen", () => {
+    const auto = settingsWith({ country: "IN" });
+    const profile = createProfile(auto);
+    adoptCountry(profile, "Canada", auto);
+    expect(profile.currency).toBe("CAD");
+  });
+
+  it("adds the country to international addresses only", () => {
+    const standard = settingsWith({ addressFormat: "standard" });
+    const profile = createProfile(standard);
+    expect(generateValue("address", standard, profile)).not.toContain(profile.country);
+    expect(generateValue("address", settingsWith({ addressFormat: "international" }), profile)).toMatch(new RegExp(`, ${profile.country}$`));
+  });
+});
+
+describe("data generation settings", () => {
+  const sample = (kind: GeneratedKind, overrides: Partial<AutofillSettings>, html = '<input id="field">'): string[] =>
+    Array.from({ length: 100 }, () => generateFor(html, kind, overrides));
+
+  it("keeps numbers inside the configured range", () => {
+    for (const value of sample("number", { numberMin: 50, numberMax: 60 })) {
+      expect(Number(value)).toBeGreaterThanOrEqual(50);
+      expect(Number(value)).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it("lets a field's own min and max win over the configured range", () => {
+    for (const value of sample("number", { numberMin: 50, numberMax: 60 }, '<input id="field" type="number" min="1" max="3">')) {
+      expect(Number(value)).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("applies decimal precision to text fields", () => {
+    expect(generateFor('<input id="field">', "amount", { decimalPrecision: 2 })).toMatch(/^\d+\.\d{2}$/);
+  });
+
+  it("applies decimal precision to number fields that allow it", () => {
+    expect(generateFor('<input id="field" type="number" step="0.01">', "amount", { decimalPrecision: 4 })).toMatch(/^\d+\.\d{4}$/);
+  });
+
+  it("uses whole numbers where the field would reject decimals", () => {
+    expect(generateFor('<input id="field" type="number">', "number", { decimalPrecision: 2 })).toMatch(/^\d+$/);
+  });
+
+  it("keeps generic dates inside the configured range", () => {
+    for (const value of sample("date", { dateStart: "2024-03-01", dateEnd: "2024-03-31" }, '<input id="field" type="date">')) {
+      expect(value >= "2024-03-01" && value <= "2024-03-31").toBe(true);
+    }
+  });
+
+  it("does not let a date range change a date of birth", () => {
+    expect(generateFor('<input id="field" type="date">', "dateOfBirth", { ageMin: 30, ageMax: 30, dateStart: "2024-03-01", dateEnd: "2024-03-31" })).not.toMatch(/^2024/);
+  });
+
+  it("uses plain random text when asked", () => {
+    expect(generateFor('<input id="field">', "text", { textMode: "random" })).toMatch(/^[a-zA-Z]{10}$/);
+    expect(generateFor('<input id="field">', "message", { textMode: "random" })).toMatch(/^[a-zA-Z0-9]{24}$/);
+  });
+
+  it("keeps company size inside its range", () => {
+    expect(createProfile(settingsWith({ companySizeMin: 200, companySizeMax: 200 })).companySize).toBe(200);
+  });
+
+  it.each([
+    ["employeeId", { employeeIdPattern: "E{number:10-99}" }, /^E\d{2}$/],
+    ["customerId", { customerIdPattern: "C{number:10-99}" }, /^C\d{2}$/],
+    ["invoiceId", { invoiceIdPattern: "I{number:10-99}" }, /^I\d{2}$/]
+  ] as const)("builds %s from its pattern", (kind, overrides, format) => {
+    expect(generateValue(kind, settingsWith(overrides), createProfile(settingsWith(overrides)))).toMatch(format);
+  });
+
+  it("has sensible default ID patterns", () => {
+    expect(createProfile(settingsWith()).employeeId).toMatch(/^EMP-\d{4}$/);
+  });
+});
+
+describe("repeated fields", () => {
+  const settings = settingsWith();
+  const profile = createProfile(settings);
+
+  it("leaves the first field as the profile's own value", () => {
+    expect(generateValue("email", settings, profile, undefined, 0)).toBe(profile.email);
+  });
+
+  it.each(["email", "username", "phone", "employeeId", "customerId", "invoiceId"] as const)("makes repeats of %s different", (kind) => {
+    const values = [0, 1, 2].map((repeat) => generateValue(kind, settings, profile, undefined, repeat));
+    expect(new Set(values).size).toBe(3);
+  });
+
+  it("keeps a repeated phone number the same length", () => {
+    expect(generateValue("phone", settings, profile, undefined, 3)).toHaveLength(profile.phone.length);
+  });
+});
+
+describe("reusing generated data", () => {
+  it("gives the same data for the same seed", () => {
+    const settings = settingsWith({ reuseProfile: true, profileSeed: 42 });
+    const first = createProfile(settings);
+    expect(createProfile(settings)).toMatchObject({ fullName: first.fullName, email: first.email, phone: first.phone });
+  });
+
+  it("gives different data for a different seed", () => {
+    const first = createProfile(settingsWith({ reuseProfile: true, profileSeed: 1 }));
+    expect(createProfile(settingsWith({ reuseProfile: true, profileSeed: 2 })).email).not.toBe(first.email);
+  });
+
+  it("leaves the rest of the fill random", () => {
+    const settings = settingsWith({ reuseProfile: true, profileSeed: 42 });
+    createProfile(settings);
+    const first = generateValue("text", settings, createProfile(settings));
+    createProfile(settings);
+    expect(generateValue("text", settings, createProfile(settings))).not.toBe(first);
+  });
+});
+
+describe("profile tokens", () => {
+  it("covers every token rules are allowed to use", () => {
+    const tokens = profileTokens(createProfile(settingsWith()));
+    expect(Object.keys(tokens)).toEqual([...PROFILE_TOKENS]);
+    expect(Object.values(tokens)).not.toContain("undefined");
+  });
+});
+
 describe("constrained identifiers", () => {
   const india = { country: "IN" } as const;
 
@@ -396,6 +568,14 @@ describe("customRuleValue", () => {
 
   it("matches whole words only", () => {
     expect(customRuleValue("stage", withRules("age", "1"), profile)).toBeUndefined();
+  });
+
+  it("matches regardless of case", () => {
+    expect(customRuleValue("employee id", withRules("EMPLOYEE ID", "EMP-1"), profile)).toBe("EMP-1");
+  });
+
+  it("generates numbers from a pattern", () => {
+    expect(customRuleValue("invoice id", withRules("invoice id", "INV-{number:10000-99999}"), profile)).toMatch(/^INV-\d{5}$/);
   });
 
   it("fills tokens from the profile and leaves unknown ones alone", () => {

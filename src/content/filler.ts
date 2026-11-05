@@ -1,13 +1,15 @@
 import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, Profile } from "../generators/profile";
 import { customRuleValue, dateCandidates, generateValue, isDateKind, pickDate } from "../generators/values";
-import { AutofillSettings, FillResult } from "../shared/types";
+import { AutofillSettings, FillResult, SelectionMode } from "../shared/types";
 import { classifyField, FieldKind, getFieldDescription } from "./classifier";
+import { choiceLabel } from "./context";
 import { comboboxHasValue, fillCombobox } from "./customDropdown";
 import { isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePicker";
 import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isInput, isSelect, isVisible } from "./detector";
-import { hasSelection, pickChoice, toChoice, usableOptions } from "./dropdown";
+import { hasSelection, pickChoice, pickMany, toChoice, usableOptions } from "./dropdown";
+import { remember, startSnapshot } from "./undo";
 import { delay, waitFor } from "./waiting";
-import { toggle, writeEditable, writeSelect, writeValue } from "./writers";
+import { highlight, toggle, writeEditable, writeMultiSelect, writeSelect, writeValue } from "./writers";
 
 /** Rescans catch fields revealed by earlier selections; the limit stops pages that keep re-rendering. */
 const MAX_PASSES = 4;
@@ -16,6 +18,9 @@ const DROPDOWN_TICK_MS = 30;
 const DEPENDENT_WAIT_MS = 2500;
 /** Bounds a page full of dropdowns that never open, which each cost a timeout. */
 const DROPDOWN_BUDGET_MS = 20000;
+const MAX_REPORT_LINES = 50;
+/** These repeat an earlier field on purpose, so they must keep its value. */
+const CONFIRMATION = /\b(confirm|confirmation|retype|re ?enter|repeat|verify)\b/;
 
 /** Parents go first so that dependent lists have loaded, and the profile has settled, before their children. */
 const DROPDOWN_ORDER: readonly FieldKind[] = ["country", "state", "city"];
@@ -28,6 +33,9 @@ interface FillRun {
   done: WeakSet<HTMLElement>;
   skipped: Set<HTMLElement>;
   written: Array<HTMLInputElement | HTMLTextAreaElement>;
+  filledFields: HTMLElement[];
+  /** How many fields of each kind have been written, for making repeats unique. */
+  kindCounts: Map<FieldKind, number>;
   changed: boolean;
 }
 
@@ -38,6 +46,7 @@ const settle = (run: FillRun, element: HTMLElement): void => {
 
 const markFilled = (run: FillRun, element: HTMLElement): void => {
   settle(run, element);
+  run.filledFields.push(element);
   run.result.filled++;
   run.changed = true;
 };
@@ -70,15 +79,22 @@ function adoptChoice(run: FillRun, kind: FieldKind, label: string): void {
   if (kind === "city") adoptCity(run.profile, label);
 }
 
-const dropdownTargetsFor = (run: FillRun, element: HTMLElement, kind: FieldKind): string[] => {
+/** A custom rule names the exact option it wants, whatever the dropdown preference is. */
+function selection(run: FillRun, element: HTMLElement, kind: FieldKind, mode: SelectionMode): { targets: string[]; mode: SelectionMode } {
   const custom = customValue(run, element);
-  return custom ? [custom] : dropdownTargets(kind, run.profile);
-};
+  return custom ? { targets: [custom], mode: "match" } : { targets: dropdownTargets(kind, run.profile), mode };
+}
 
 function fillSelect(run: FillRun, select: HTMLSelectElement, kind: FieldKind): void {
   if (kind === "skip" && customValue(run, select) === undefined) return markSkipped(run, select);
   const choices = usableOptions(select).map(toChoice);
-  const choice = pickChoice(choices, dropdownTargetsFor(run, select, kind), run.settings.dropdownMode);
+  remember(select);
+  if (select.multiple && customValue(run, select) === undefined) {
+    writeMultiSelect(select, pickMany(choices, run.settings.multiSelectMode).map(({ value }) => value));
+    return markFilled(run, select);
+  }
+  const { targets, mode } = selection(run, select, kind, run.settings.dropdownMode);
+  const choice = pickChoice(choices, targets, mode);
   if (!choice) return markSkipped(run, select);
   writeSelect(select, choice.value);
   adoptChoice(run, kind, choice.label);
@@ -87,9 +103,10 @@ function fillSelect(run: FillRun, select: HTMLSelectElement, kind: FieldKind): v
 
 async function fillComboboxField(run: FillRun, trigger: HTMLElement, kind: FieldKind): Promise<void> {
   if (kind === "skip") return markSkipped(run, trigger);
-  const targets = dropdownTargetsFor(run, trigger, kind);
+  const { targets, mode } = selection(run, trigger, kind, run.settings.dropdownMode);
   const query = targets[0] ?? generateValue(kind, run.settings, run.profile);
-  const label = await fillCombobox(trigger, targets, query, run.settings.dropdownMode);
+  remember(trigger);
+  const label = await fillCombobox(trigger, targets, query, mode);
   if (!label) return markFailed(run, trigger, "Could not open dropdown");
   adoptChoice(run, kind, label);
   markFilled(run, trigger);
@@ -128,7 +145,7 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
       await delay(DROPDOWN_TICK_MS);
     }
 
-    const canUnblock = run.changed && pending.length > 0;
+    const canUnblock = run.settings.detectDynamic && run.changed && pending.length > 0;
     if (!canUnblock || !(await waitFor(() => pending.some((select) => !isPendingSelect(select)), DEPENDENT_WAIT_MS))) {
       pending.forEach((select) => markSkipped(run, select));
       return;
@@ -139,9 +156,12 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
 
 function fillChoiceGroup(run: FillRun, element: HTMLInputElement): void {
   if (element.type === "checkbox") {
-    // Optional boxes are often marketing or consent choices, so only required ones are ticked.
+    // Optional boxes are often marketing or consent choices, so by default only required ones are ticked.
     const required = element.required || element.getAttribute("aria-required") === "true";
-    if (!required || element.checked) return markSkipped(run, element);
+    const { checkboxMode } = run.settings;
+    const wanted = checkboxMode === "all" || (checkboxMode === "required" && required);
+    if (!wanted || element.checked) return markSkipped(run, element);
+    remember(element);
     toggle(element);
     return markFilled(run, element);
   }
@@ -154,15 +174,18 @@ function fillChoiceGroup(run: FillRun, element: HTMLInputElement): void {
   // A group is decided once and counts as a single field.
   group.forEach((radio) => settle(run, radio));
   const available = group.filter((radio) => isVisible(radio) && !isDisabled(radio));
-  const choices = available.map((radio) => ({ label: radio.value, value: radio.value, radio }));
-  const choice = group.some((radio) => radio.checked) ? undefined : pickChoice(choices, [], run.settings.dropdownMode);
+  const choices = available.map((radio) => ({ label: choiceLabel(radio) || radio.value, value: radio.value, radio }));
+  const { targets, mode } = selection(run, element, classifyField(element), run.settings.radioMode);
+  const choice = group.some((radio) => radio.checked) ? undefined : pickChoice(choices, targets, mode);
   if (!choice) return markSkipped(run, element);
+  remember(choice.radio);
   toggle(choice.radio);
   markFilled(run, choice.radio);
 }
 
 async function fillTextDate(run: FillRun, element: HTMLInputElement, kind: "dateOfBirth" | "date" | "futureDate"): Promise<void> {
-  const candidates = dateCandidates(pickDate(kind, run.profile), run.settings, element);
+  const candidates = dateCandidates(pickDate(kind, run.profile, run.settings), run.settings, element);
+  remember(element);
   if (!(await writeFirstAcceptedDate(element, candidates))) return markUnsupported(run, element, "Unsupported date picker");
   run.written.push(element);
   markFilled(run, element);
@@ -171,9 +194,16 @@ async function fillTextDate(run: FillRun, element: HTMLInputElement, kind: "date
 async function fillFlatpickr(run: FillRun, element: HTMLInputElement): Promise<void> {
   if (!run.settings.fillExisting && element.value.trim() !== "") return markSkipped(run, element);
   const kind = classifyField(element);
-  const date = pickDate(isDateKind(kind) ? kind : "date", run.profile);
+  const date = pickDate(isDateKind(kind) ? kind : "date", run.profile, run.settings);
   if (await pickFlatpickrDate(element, date)) return markFilled(run, element);
   markUnsupported(run, element, "Unsupported date picker");
+}
+
+function repeatIndex(run: FillRun, element: HTMLElement, kind: FieldKind): number {
+  if (!run.settings.uniqueValues || CONFIRMATION.test(getFieldDescription(element))) return 0;
+  const seen = run.kindCounts.get(kind) ?? 0;
+  run.kindCounts.set(kind, seen + 1);
+  return seen;
 }
 
 async function fillText(run: FillRun, element: HTMLInputElement | HTMLTextAreaElement): Promise<void> {
@@ -184,7 +214,10 @@ async function fillText(run: FillRun, element: HTMLInputElement | HTMLTextAreaEl
   if (kind === "skip" && custom === undefined) return markSkipped(run, element);
   if (custom === undefined && isDateKind(kind) && isInput(element) && element.type !== "date") return fillTextDate(run, element, kind);
 
-  const value = custom ?? generateValue(kind === "skip" ? "text" : kind, run.settings, run.profile, element);
+  const value = custom ?? generateValue(kind === "skip" ? "text" : kind, run.settings, run.profile, element, repeatIndex(run, element, kind));
+  // Only an excluded value, such as the middle name when that setting is off, comes back empty.
+  if (value === "") return markSkipped(run, element);
+  remember(element);
   if (!writeValue(element, value)) return markFailed(run, element, "Field rejected the value");
   if (element.validity && !element.validity.valid) {
     // Preserve the generated value but report fields that need a custom rule.
@@ -208,6 +241,7 @@ function fillEditable(run: FillRun, element: HTMLElement): void {
   if (!run.settings.fillExisting && (element.textContent ?? "").trim() !== "") return markSkipped(run, element);
   const kind = classifyField(element);
   if (kind === "skip") return markSkipped(run, element);
+  remember(element);
   writeEditable(element, customValue(run, element) ?? generateValue(kind, run.settings, run.profile));
   markFilled(run, element);
 }
@@ -248,8 +282,9 @@ const isDropdown = (element: HTMLElement): boolean => {
 };
 
 async function fillPasses(run: FillRun): Promise<void> {
-  for (let pass = 0; pass < MAX_PASSES; pass++) {
-    const fields = collectFields(document).filter((element) => !run.done.has(element));
+  const { detectDynamic, includeFrames, fillScope } = run.settings;
+  for (let pass = 0; pass < (detectDynamic ? MAX_PASSES : 1); pass++) {
+    const fields = collectFields(document, { includeFrames, scope: fillScope }).filter((element) => !run.done.has(element));
     run.changed = false;
 
     await fillDropdowns(run, fields.filter(isDropdown));
@@ -260,6 +295,16 @@ async function fillPasses(run: FillRun): Promise<void> {
   }
 }
 
+/** Lists each field by its description. Generated values are left out on purpose. */
+function addDetailedReport(run: FillRun): void {
+  const lines = [
+    ...run.filledFields.map((element) => `Filled: ${describe(element)}`),
+    ...[...run.skipped].map((element) => `Skipped: ${describe(element)}`)
+  ];
+  run.result.details.push(...lines.slice(0, MAX_REPORT_LINES));
+  if (lines.length > MAX_REPORT_LINES) run.result.details.push(`And ${lines.length - MAX_REPORT_LINES} more.`);
+}
+
 export async function fillPage(settings: AutofillSettings): Promise<FillResult> {
   const run: FillRun = {
     settings,
@@ -268,8 +313,11 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
     done: new WeakSet(),
     skipped: new Set(),
     written: [],
+    filledFields: [],
+    kindCounts: new Map(),
     changed: false
   };
+  startSnapshot();
 
   const allowSubmissions = blockSubmissions(run);
   try {
@@ -280,5 +328,7 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
 
   reportClearedFields(run);
   run.result.skipped = run.skipped.size;
+  if (settings.detailedReport) addDetailedReport(run);
+  if (settings.highlightFilled) highlight(run.filledFields);
   return run.result;
 }

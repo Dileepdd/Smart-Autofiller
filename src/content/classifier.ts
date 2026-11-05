@@ -1,8 +1,9 @@
 import { fieldSignals } from "./context";
 
 export type FieldKind =
-  | "firstName" | "middleName" | "lastName" | "fullName" | "email"
-  | "company" | "jobTitle" | "domain" | "website" | "username" | "password"
+  | "firstName" | "middleName" | "lastName" | "fullName" | "email" | "gender"
+  | "company" | "companySize" | "department" | "jobTitle" | "domain" | "website" | "username" | "password"
+  | "employeeId" | "customerId" | "invoiceId" | "currency" | "amount"
   | "phone" | "age" | "experience" | "taxId" | "gstin" | "zip" | "street" | "addressLine2"
   | "address" | "city" | "state" | "country" | "dateOfBirth" | "date" | "futureDate"
   | "dateTime" | "time" | "month" | "week" | "url" | "number" | "message" | "text"
@@ -20,7 +21,11 @@ const RULES: ReadonlyArray<readonly [FieldKind, RegExp]> = [
   ["firstName", /\b(first ?name|fname|given ?name|forename)\b/],
   ["middleName", /\b(middle ?name|mname|middle initial)\b/],
   ["lastName", /\b(last ?name|lname|surname|family ?name)\b/],
+  ["employeeId", /\b(employee ?(id|no|number|code)|emp ?(id|no|code)|staff ?id)\b/],
+  ["customerId", /\b(customer ?(id|no|number|code)|client ?(id|no|number|code))\b/],
+  ["invoiceId", /\b(invoice ?(id|no|number)?)\b/],
   ["username", /\b(user ?name|user ?id|login( ?(id|name))?|nick ?name|screen ?name)\b/],
+  ["gender", /\b(gender|sex)\b/],
   // Check domain and website before company: labels such as "Company Domain" contain both terms.
   ["domain", /\bdomain\b/],
   ["website", /\b(web ?site|home ?page|company url)\b/],
@@ -36,6 +41,10 @@ const RULES: ReadonlyArray<readonly [FieldKind, RegExp]> = [
   ["country", /\b(country|nation|nationality)\b/],
   ["address", /\b(address|addr)\b/],
   ["jobTitle", /\b(job ?title|job role|designation|occupation|position)\b/],
+  ["department", /\b(department|dept)\b/],
+  ["companySize", /\b(company size|employee count|number of employees|no of employees|head ?count|team size)\b/],
+  ["currency", /\bcurrency\b/],
+  ["amount", /\b(amount|price|salary|ctc|budget|cost)\b/],
   ["fullName", /\b(full ?name|(candidate|contact|applicant|customer|employee|legal|your|person) ?name)\b|^name$/],
   ["company", /\b(company|organi[sz]ation|employer|business|vendor|firm)\b/],
   // "Project Name" must outvote a generic name="name" attribute instead of becoming a person's name.
@@ -83,7 +92,7 @@ const TYPE_KINDS: Readonly<Record<string, readonly FieldKind[]>> = {
   time: ["time"],
   month: ["month"],
   week: ["week"],
-  number: ["age", "experience", "phone", "zip", "taxId", "number"]
+  number: ["age", "experience", "phone", "zip", "taxId", "companySize", "amount", "number"]
 };
 
 const matchRule = (text: string): FieldKind | undefined => RULES.find(([, pattern]) => pattern.test(text))?.[0];

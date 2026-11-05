@@ -45,8 +45,25 @@ export function writeSelect(select: HTMLSelectElement, value: string): void {
   });
 }
 
+export function writeMultiSelect(select: HTMLSelectElement, values: string[]): void {
+  withFocusEvents(select, () => {
+    for (const option of Array.from(select.options)) option.selected = values.includes(option.value);
+    fire(select, "input");
+    fire(select, "change");
+  });
+}
+
 /** A real click, so checkboxes and radios fire the events frameworks listen for. */
 export const toggle = (element: HTMLInputElement): void => element.click();
+
+const HIGHLIGHT_MS = 2000;
+
+/** Outlines fields briefly. Uses outline because, unlike a border, it cannot shift the page's layout. */
+export function highlight(elements: HTMLElement[]): void {
+  const previous = elements.map((element) => element.style.outline);
+  elements.forEach((element) => { element.style.outline = "2px solid #1e8e3e"; });
+  setTimeout(() => elements.forEach((element, index) => { element.style.outline = previous[index]; }), HIGHLIGHT_MS);
+}
 
 /** Elements whose click would submit a form or leave the page. */
 const canSubmitOrNavigate = (element: HTMLElement): boolean => {

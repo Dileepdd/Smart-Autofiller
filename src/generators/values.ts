@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { FieldKind } from "../content/classifier";
 import { splitWords } from "../content/context";
 import { AutofillSettings } from "../shared/types";
-import { pickInt, Profile } from "./profile";
+import { pickInt, Profile, renderProfileTemplate } from "./profile";
 
 export type GeneratedKind = Exclude<FieldKind, "skip">;
 
@@ -39,8 +39,20 @@ function dateValue(date: Date, { settings, element }: GeneratorContext): string 
 export const isDateKind = (kind: string): kind is "dateOfBirth" | "date" | "futureDate" =>
   kind === "dateOfBirth" || kind === "date" || kind === "futureDate";
 
-export function pickDate(kind: "dateOfBirth" | "date" | "futureDate", profile: Profile): Date {
+const DAY_MS = 86_400_000;
+
+const localDate = (iso: string): Date => {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+export function pickDate(kind: "dateOfBirth" | "date" | "futureDate", profile: Profile, settings: AutofillSettings): Date {
   if (kind === "dateOfBirth") return profile.dateOfBirth;
+  if (settings.dateStart || settings.dateEnd) {
+    const from = settings.dateStart ? localDate(settings.dateStart) : new Date(localDate(settings.dateEnd).getTime() - 365 * DAY_MS);
+    const to = settings.dateEnd ? localDate(settings.dateEnd) : new Date(from.getTime() + 365 * DAY_MS);
+    return faker.date.between({ from, to });
+  }
   return kind === "date" ? faker.date.recent({ days: 365 }) : faker.date.soon({ days: 365 });
 }
 
@@ -50,13 +62,23 @@ export function dateCandidates(date: Date, settings: AutofillSettings, element: 
   return [...new Set(formats.flatMap((format) => (format ? formatDate(date, format) : [])))];
 }
 
-function numberValue({ element }: GeneratorContext): string {
+/** A number input with no decimal step rejects fractions, so precision only applies where they are legal. */
+function allowsDecimals(element?: TextField): boolean {
+  if (element?.getAttribute("type")?.toLowerCase() !== "number") return true;
+  const step = element.getAttribute("step");
+  return step === "any" || (step ?? "").includes(".");
+}
+
+function numberValue({ settings, element }: GeneratorContext): string {
   const attribute = (name: string): number | undefined => {
     const value = element?.getAttribute(name);
     return value && Number.isFinite(Number(value)) ? Number(value) : undefined;
   };
-  const min = attribute("min") ?? 1;
-  return String(pickInt(min, attribute("max") ?? Math.max(100, min + 100)));
+  const min = attribute("min") ?? settings.numberMin;
+  const fallbackMax = attribute("min") === undefined ? settings.numberMax : Math.max(settings.numberMax, min + 100);
+  const max = attribute("max") ?? fallbackMax;
+  if (settings.decimalPrecision === 0 || !allowsDecimals(element)) return String(pickInt(min, max));
+  return faker.number.float({ min: Math.min(min, max), max: Math.max(min, max), fractionDigits: settings.decimalPrecision }).toFixed(settings.decimalPrecision);
 }
 
 // Typed as a full Record so that adding a FieldKind fails to compile until it has a generator.
@@ -71,6 +93,13 @@ const GENERATORS: Record<GeneratedKind, (context: GeneratorContext) => string> =
   phone: ({ profile }) => profile.phone,
   company: ({ profile }) => profile.company,
   jobTitle: ({ profile }) => profile.jobTitle,
+  department: ({ profile }) => profile.department,
+  gender: ({ profile }) => profile.gender,
+  companySize: ({ profile }) => String(profile.companySize),
+  employeeId: ({ profile }) => profile.employeeId,
+  customerId: ({ profile }) => profile.customerId,
+  invoiceId: ({ profile }) => profile.invoiceId,
+  currency: ({ profile }) => profile.currency,
   domain: ({ profile }) => profile.domain,
   website: ({ profile }) => profile.website,
   url: ({ profile }) => profile.website,
@@ -81,20 +110,24 @@ const GENERATORS: Record<GeneratedKind, (context: GeneratorContext) => string> =
   zip: ({ profile }) => profile.postalCode,
   street: ({ profile }) => profile.street,
   addressLine2: ({ profile }) => profile.addressLine2,
-  address: ({ profile }) => `${profile.street}, ${profile.city}, ${profile.region} ${profile.postalCode}`,
+  address: ({ profile, settings }) => {
+    const local = `${profile.street}, ${profile.city}, ${profile.region} ${profile.postalCode}`;
+    return settings.addressFormat === "international" ? `${local}, ${profile.country}` : local;
+  },
   city: ({ profile }) => profile.city,
   state: ({ profile }) => profile.region,
   country: ({ profile }) => profile.country,
-  dateOfBirth: (context) => dateValue(pickDate("dateOfBirth", context.profile), context),
-  date: (context) => dateValue(pickDate("date", context.profile), context),
-  futureDate: (context) => dateValue(pickDate("futureDate", context.profile), context),
+  dateOfBirth: (context) => dateValue(pickDate("dateOfBirth", context.profile, context.settings), context),
+  date: (context) => dateValue(pickDate("date", context.profile, context.settings), context),
+  futureDate: (context) => dateValue(pickDate("futureDate", context.profile, context.settings), context),
   dateTime: () => `${formatDate(faker.date.soon({ days: 30 }), "YYYY-MM-DD")}T${pad(pickInt(9, 17))}:00`,
   time: () => `${pad(pickInt(9, 17))}:00`,
   month: () => formatDate(faker.date.soon({ days: 365 }), "YYYY-MM"),
   week: () => `${new Date().getFullYear()}-W${pad(pickInt(1, 52))}`,
   number: numberValue,
-  message: () => faker.company.catchPhrase(),
-  text: () => faker.word.words(2)
+  amount: numberValue,
+  message: ({ settings }) => (settings.textMode === "random" ? faker.string.alphanumeric(24) : faker.company.catchPhrase()),
+  text: ({ settings }) => (settings.textMode === "random" ? faker.string.alpha(10) : faker.word.words(2))
 };
 
 function matchesPattern(value: string, pattern: string): boolean {
@@ -153,7 +186,9 @@ function fitConstraints(value: string, kind: GeneratedKind, element: TextField, 
     // A number input discards formatted values such as phone numbers outright.
     if (!Number.isFinite(number)) return digitsOf(value) || String(pickInt(1000, 9999));
     const atLeast = min && Number.isFinite(Number(min)) ? Math.max(number, Number(min)) : number;
-    return String(max && Number.isFinite(Number(max)) ? Math.min(atLeast, Number(max)) : atLeast);
+    const fitted = max && Number.isFinite(Number(max)) ? Math.min(atLeast, Number(max)) : atLeast;
+    // Keeps trailing zeros such as 12.50 when the value was already in range.
+    return fitted === number ? value : String(fitted);
   }
   if (type === "date") {
     if (min && value < min) return min;
@@ -167,21 +202,25 @@ function fitConstraints(value: string, kind: GeneratedKind, element: TextField, 
   return maxLength > 0 ? fitLength(padded, kind, maxLength) : padded;
 }
 
-export function generateValue(kind: GeneratedKind, settings: AutofillSettings, profile: Profile, element?: TextField): string {
-  const value = GENERATORS[kind]({ settings, profile, element });
-  return element ? fitConstraints(value, kind, element, profile) : value;
+/** Makes the nth repeat of an identifying value different, keeping its shape. */
+function uniqueVariant(kind: GeneratedKind, value: string, repeat: number): string {
+  if (repeat === 0) return value;
+  if (kind === "email") return value.replace("@", `${repeat + 1}@`);
+  if (kind === "username") return `${value}${repeat + 1}`;
+  if (kind === "phone" || kind === "employeeId" || kind === "customerId" || kind === "invoiceId") {
+    return value.replace(/\d+(?=\D*$)/, (digits) => String(Number(digits) + repeat).padStart(digits.length, "0").slice(-digits.length));
+  }
+  return value;
 }
 
-function interpolate(template: string, profile: Profile): string {
-  return template.replace(/\{(\w+)\}/g, (token, name: string) => {
-    if (!(name in profile)) return token;
-    const value = profile[name as keyof Profile];
-    return value instanceof Date ? formatDate(value, "YYYY-MM-DD") : String(value);
-  });
+/** `repeat` counts earlier fields of this kind, for filling them with different values. */
+export function generateValue(kind: GeneratedKind, settings: AutofillSettings, profile: Profile, element?: TextField, repeat = 0): string {
+  const value = uniqueVariant(kind, GENERATORS[kind]({ settings, profile, element }), repeat);
+  return element ? fitConstraints(value, kind, element, profile) : value;
 }
 
 /** Returns the value of the first custom rule whose keyword appears in the field's description. */
 export function customRuleValue(description: string, settings: AutofillSettings, profile: Profile): string | undefined {
   const rule = settings.customRules.find(({ match }) => ` ${description} `.includes(` ${splitWords(match)} `));
-  return rule && interpolate(rule.value, profile);
+  return rule && renderProfileTemplate(rule.value, profile);
 }

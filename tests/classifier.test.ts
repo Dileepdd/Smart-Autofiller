@@ -73,7 +73,16 @@ describe("classifyField labels", () => {
     ["Address Line 2", "addressLine2"],
     ["Address", "address"],
     ["Job Title", "jobTitle"],
-    ["Comments", "message"]
+    ["Comments", "message"],
+    ["Gender", "gender"],
+    ["Department", "department"],
+    ["Company Size", "companySize"],
+    ["Number of Employees", "companySize"],
+    ["Employee ID", "employeeId"],
+    ["Customer ID", "customerId"],
+    ["Invoice Number", "invoiceId"],
+    ["Currency", "currency"],
+    ["Salary", "amount"]
   ])("classifies %j as %s", (label, kind) => {
     expect(classifyLabelled(label)).toBe(kind);
   });

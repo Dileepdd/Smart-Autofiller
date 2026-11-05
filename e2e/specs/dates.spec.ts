@@ -1,4 +1,4 @@
-﻿import { expect, fillThroughPopup, pageState, test } from "../support/harness";
+import { expect, fillThroughPopup, pageState, test } from "../support/harness";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 

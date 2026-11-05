@@ -11,6 +11,12 @@
     "page": "options.html",
     "open_in_tab": true
   },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+F" },
+      "description": "Fill the page"
+    }
+  },
   "action": {
     "default_title": "Smart Autofill",
     "default_icon": {

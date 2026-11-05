@@ -17,6 +17,7 @@ export interface Locale {
   name: string;
   aliases: string[];
   dialCode: string;
+  currency: string;
   phone: string;
   taxId: string;
   regions: Region[];
@@ -29,6 +30,7 @@ export const LOCALES: Locale[] = [
     name: "United States",
     aliases: ["USA", "United States of America", "America"],
     dialCode: "+1",
+    currency: "USD",
     phone: "(2##) 555-01##",
     taxId: "12-#######",
     regions: [
@@ -44,6 +46,7 @@ export const LOCALES: Locale[] = [
     name: "India",
     aliases: ["Bharat"],
     dialCode: "+91",
+    currency: "INR",
     phone: "9#### #####",
     // The fourth letter of a PAN gives the holder type, and P means an individual.
     taxId: "???P?####?",
@@ -60,6 +63,7 @@ export const LOCALES: Locale[] = [
     name: "United Kingdom",
     aliases: ["UK", "Great Britain", "Britain"],
     dialCode: "+44",
+    currency: "GBP",
     phone: "07700 900###",
     taxId: "GB#########",
     regions: [
@@ -73,6 +77,7 @@ export const LOCALES: Locale[] = [
     name: "Canada",
     aliases: [],
     dialCode: "+1",
+    currency: "CAD",
     phone: "(2##) 555-01##",
     taxId: "#########RT0001",
     regions: [
@@ -87,6 +92,7 @@ export const LOCALES: Locale[] = [
     name: "Australia",
     aliases: [],
     dialCode: "+61",
+    currency: "AUD",
     phone: "0491 570 ###",
     taxId: "## ### ### ###",
     regions: [

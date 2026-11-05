@@ -87,6 +87,9 @@ function surroundingText(element: HTMLElement): string {
   return "";
 }
 
+/** The text a person sees for a radio button or similar choice. */
+export const choiceLabel = (element: HTMLElement): string => labelTexts(element).join(" ").trim();
+
 /** Everything known about a field, each piece weighted by how directly it describes that field. */
 export function fieldSignals(element: HTMLElement): Signal[] {
   const attributes = (names: string[]): string[] => names.flatMap((name) => element.getAttribute(name) ?? []);
