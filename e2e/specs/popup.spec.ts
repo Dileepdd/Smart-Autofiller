@@ -102,7 +102,7 @@ test.describe("the real extension", () => {
     expect((await pageState(page)).email).toBe("");
   });
 
-  test("one click on the icon fills the page with no popup, and shows the count on the icon", async ({ extension, open }) => {
+  test("one click on the icon fills the page with no popup, and keeps the count in the tooltip", async ({ extension, open }) => {
     const page = await open("simple");
     await extension.useShippedDefaults();
 
@@ -111,7 +111,7 @@ test.describe("the real extension", () => {
 
     expect((await pageState(page)).email).toContain("@example.com");
     const icon = await extension.iconState();
-    expect(icon.badge).toBe("3");
+    expect(icon.badge).toBe("");
     expect(icon.title).toBe("Smart Autofill: 3 filled, 0 skipped, 0 need attention");
     expect(await extension.isPopupOpen()).toBe(false);
   });

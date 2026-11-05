@@ -87,7 +87,7 @@ Settings save automatically, persist in `chrome.storage.local` and apply on ever
 - Right-click the toolbar icon. **Fill on icon click**, **Replace existing values** and **Fill custom dropdowns** are ticks in that menu, along with **Undo last fill** and, once you have saved one, **Test profile**. **Options** opens every setting.
 - Open **Details** on `chrome://extensions` and choose **Extension options**.
 
-By default one click on the toolbar icon fills the page, with no popup. The icon then shows how many fields were filled, or an amber `!` warning if something needs attention. Hover over the icon for details.
+By default one click on the toolbar icon fills the page, with no popup. Hover over the icon to see how many fields were filled. The icon only changes to show an amber `!` warning if something needs attention.
 
 With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page**, the result counts and the settings. Chrome closes a popup when the page takes focus, which some custom widgets do while being filled. The fill still finishes, and the result is always on the icon too.
 

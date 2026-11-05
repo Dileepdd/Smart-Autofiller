@@ -245,14 +245,17 @@ export class Extension {
   }
 
   /**
-   * The badge and tooltip Chrome shows on the icon for whichever tab has one. This asks the worker
+   * The badge and tooltip on the icon for whichever tab has a result. A clean fill leaves no badge,
+   * so the tooltip is what marks a result. This asks the worker
    * directly: opening a tab here would push the form into the background, where Chrome throttles timers.
    */
   async iconState(): Promise<{ badge: string; title: string }> {
     const read = `(async () => {
       for (const { id: tabId } of await chrome.tabs.query({})) {
-        const badge = await chrome.action.getBadgeText({ tabId });
-        if (badge && badge !== "…") return { badge, title: await chrome.action.getTitle({ tabId }) };
+        const title = await chrome.action.getTitle({ tabId });
+        if (title.startsWith("Smart Autofill: ") && title !== "Smart Autofill: filling") {
+          return { badge: await chrome.action.getBadgeText({ tabId }), title };
+        }
       }
       return null;
     })()`;

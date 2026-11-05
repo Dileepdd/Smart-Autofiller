@@ -8,7 +8,6 @@ const BADGE_OK = "#7c2ee6";
 const BADGE_WARNING = "#f9ab00";
 const BADGE_TEXT_OK = "#ffffff";
 const BADGE_TEXT_WARNING = "#202124";
-const MAX_BADGE_COUNT = 999;
 const UNDO_MENU = "undo";
 const PROFILE_MENU = "profiles";
 const PROFILE_PREFIX = "profile:";
@@ -71,7 +70,7 @@ function showResult(tabId: number, result: FillResult): Promise<void> {
   const problems = result.errors + result.unsupported;
   const summary = `${NAME}: ${result.filled} filled, ${result.skipped} skipped, ${problems} need attention`;
   const title = [summary, ...result.details].join("\n");
-  return showOnIcon(tabId, problems ? "!" : String(Math.min(result.filled, MAX_BADGE_COUNT)), title, problems > 0);
+  return showOnIcon(tabId, problems ? "!" : "", title, problems > 0);
 }
 
 async function undo(tabId: number): Promise<void> {
