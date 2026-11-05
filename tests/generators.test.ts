@@ -467,6 +467,52 @@ describe("profile tokens", () => {
   });
 });
 
+describe("format hints on the page", () => {
+  const hinted = (hint: string, kind: GeneratedKind = "taxId", overrides: Partial<AutofillSettings> = { country: "IN" }): string =>
+    generateFor(`<div><label for="field">Federal Tax ID</label><input id="field"><p>${hint}</p></div>`, kind, overrides);
+
+  it("follows a mask written under the field", () => {
+    expect(hinted("Format: XX-XXXXXXX")).toMatch(/^\d{2}-\d{7}$/);
+  });
+
+  it("follows an example", () => {
+    expect(hinted("e.g. AB-1234")).toMatch(/^[A-Z]{2}-\d{4}$/);
+  });
+
+  it("follows a mask in the placeholder", () => {
+    expect(generateFor('<input id="field" placeholder="###-##-####">', "taxId")).toMatch(/^\d{3}-\d{2}-\d{4}$/);
+  });
+
+  it("follows a hint linked with aria-describedby", () => {
+    expect(generateFor('<input id="field" aria-describedby="h"><p id="h">Format: 99-9999</p>', "zip")).toMatch(/^\d{2}-\d{4}$/);
+  });
+
+  it("leaves a value that already fits", () => {
+    render('<div><input id="field"><p>Format: XX-XXXXXXX</p></div>');
+    const settings = settingsWith({ country: "US" });
+    const profile = createProfile(settings);
+    expect(generateValue("taxId", settings, profile, find<HTMLInputElement>("#field"))).toBe(profile.taxId);
+  });
+
+  it("gives two fields with the same hint the same value", () => {
+    render('<div><input id="a"><p>Format: XX-XXXXXXX</p></div><div><input id="b"><p>Format: XX-XXXXXXX</p></div>');
+    const settings = settingsWith();
+    const profile = createProfile(settings);
+    expect(generateValue("taxId", settings, profile, find<HTMLInputElement>("#a"))).toBe(generateValue("taxId", settings, profile, find<HTMLInputElement>("#b")));
+  });
+
+  it("does not take a neighbouring field's hint", () => {
+    render('<div><input id="field"><input id="other"><p>Format: XX-XXXXXXX</p></div>');
+    const settings = settingsWith({ country: "IN" });
+    const profile = createProfile(settings);
+    expect(generateValue("taxId", settings, profile, find<HTMLInputElement>("#field"))).toBe(profile.taxId);
+  });
+
+  it("does not apply hints to fields that have their own shape", () => {
+    expect(hinted("Format: XX-XXXXXXX", "email", { emailDomain: "sample.com" })).toContain("@sample.com");
+  });
+});
+
 describe("constrained identifiers", () => {
   const india = { country: "IN" } as const;
 

@@ -499,7 +499,67 @@ describe("fillPage custom dropdowns", () => {
     const result = await fillPage(settingsWith());
 
     expect(result).toMatchObject({ filled: 0, errors: 1 });
-    expect(result.details[0]).toContain("Could not open dropdown");
+    expect(result.details[0]).toContain("Could not select an option");
+  });
+
+  it("does not click the option already selected, which would clear it", async () => {
+    renderCombobox(["India"]);
+    find<HTMLElement>("#field").textContent = "India";
+    const optionClicks = vi.fn();
+    const record = ({ target }: Event): void => { if ((target as HTMLElement).getAttribute("role") === "option") optionClicks(); };
+    document.addEventListener("click", record);
+
+    await fillPage(settingsWith({ fillExisting: true, country: "IN" }));
+    document.removeEventListener("click", record);
+
+    expect(shown()).toBe("India");
+    expect(optionClicks).not.toHaveBeenCalled();
+  });
+
+  it("waits for an open list to receive its options", async () => {
+    render('<div id="field" role="combobox" aria-expanded="false" aria-label="Country"></div>');
+    const trigger = find<HTMLElement>("#field");
+    trigger.addEventListener("click", () => {
+      trigger.setAttribute("aria-expanded", "true");
+      document.body.insertAdjacentHTML("beforeend", '<ul id="list" role="listbox"></ul>');
+      setTimeout(() => {
+        find<HTMLElement>("#list").innerHTML = '<li id="hit" role="option">India</li>';
+        find<HTMLElement>("#hit").addEventListener("click", () => { trigger.textContent = "India"; });
+      }, 1200);
+    });
+
+    const result = await fillPage(settingsWith({ country: "IN" }));
+
+    expect(shown()).toBe("India");
+    expect(result).toMatchObject({ filled: 1, errors: 0 });
+  }, 8000);
+
+  it("reports a selection that does not stick instead of counting it as filled", async () => {
+    render('<div id="field" role="combobox" aria-label="Country"></div>');
+    find<HTMLElement>("#field").addEventListener("click", () => {
+      document.body.insertAdjacentHTML("beforeend", '<ul role="listbox"><li role="option">India</li></ul>');
+    });
+
+    const result = await fillPage(settingsWith());
+
+    expect(result).toMatchObject({ filled: 0, errors: 1 });
+  });
+
+  it("waits for a custom dropdown to be enabled by its parent", async () => {
+    render(`
+      <div><label for="country">Country</label><select id="country"><option value="">Choose</option><option>India</option></select></div>
+      <div id="state" role="combobox" aria-disabled="true" aria-label="State"></div>
+    `);
+    const state = find<HTMLElement>("#state");
+    find<HTMLSelectElement>("#country").addEventListener("change", () => setTimeout(() => state.removeAttribute("aria-disabled"), 200));
+    state.addEventListener("click", () => {
+      document.body.insertAdjacentHTML("beforeend", '<ul role="listbox"><li id="hit" role="option">Karnataka</li></ul>');
+      find<HTMLElement>("#hit").addEventListener("click", () => { state.textContent = "Karnataka"; });
+    });
+
+    await fillPage(settingsWith({ country: "IN" }));
+
+    expect(state.textContent).toBe("Karnataka");
   });
 
   it("types into a type-ahead combobox and picks a suggestion", async () => {
@@ -708,6 +768,49 @@ describe("fillPage scope", () => {
     const ids = collectFields(document, { includeFrames: false, scope: "all" }).map(({ id }) => id);
 
     expect(ids).toEqual(["a"]);
+  });
+});
+
+describe("fillPage location already on the page", () => {
+  const form = (country: string): string => `
+    <div>${country}</div>
+    <div><label for="tax">Tax ID</label><input id="tax"></div>
+    <div><label for="zip">ZIP Code</label><input id="zip"></div>
+  `;
+  const usCountry = '<label for="country">Country</label><select id="country"><option>India</option><option selected>United States</option></select>';
+
+  it("follows a preset country that is being kept", async () => {
+    render(form(usCountry));
+
+    await fillPage(settingsWith({ country: "IN", fillExisting: false }));
+
+    expect(find("#tax").value).toMatch(/^12-\d{7}$/);
+    expect(find("#zip").value).toMatch(/^\d{5}$/);
+  });
+
+  it("follows a disabled country even when replacing values", async () => {
+    render(form(usCountry.replace("<select", "<select disabled")));
+
+    await fillPage(settingsWith({ country: "IN", fillExisting: true }));
+
+    expect(find("#tax").value).toMatch(/^12-\d{7}$/);
+  });
+
+  it("follows a readonly text country", async () => {
+    render(form('<label for="country">Country</label><input id="country" value="United States" readonly>'));
+
+    await fillPage(settingsWith({ country: "IN" }));
+
+    expect(find("#zip").value).toMatch(/^\d{5}$/);
+  });
+
+  it("replaces the country when it is allowed to", async () => {
+    render(form(usCountry));
+
+    await fillPage(settingsWith({ country: "IN", fillExisting: true }));
+
+    expect(find<HTMLSelectElement>("#country").value).toBe("India");
+    expect(find("#zip").value).toMatch(/^\d{6}$/);
   });
 });
 
@@ -1121,6 +1224,15 @@ describe("fillPage safety", () => {
 
     expect(result).toMatchObject({ filled: 0, errors: 1 });
     expect(result.details[0]).toContain("rejected");
+  });
+
+  it("reports a field the page marks as invalid", async () => {
+    render('<div><input id="field" name="city"></div>');
+    find("#field").addEventListener("input", ({ target }) => (target as HTMLElement).setAttribute("aria-invalid", "true"));
+
+    const result = await fillPage(settingsWith());
+
+    expect(result.details[0]).toContain("Check validation");
   });
 
   it("reports a field that clears its value after blur", async () => {

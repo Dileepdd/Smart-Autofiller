@@ -1,11 +1,14 @@
 import { SelectionMode } from "../shared/types";
 import { isInput, isVisible } from "./detector";
 import { Choice, isPlaceholder, pickChoice } from "./dropdown";
-import { waitFor } from "./waiting";
+import { delay, waitFor } from "./waiting";
 import { press, writeValue } from "./writers";
 
 const OPEN_TIMEOUT_MS = 800;
+/** How long an open list may take to receive its options from a server. */
+const LOADING_TIMEOUT_MS = 5000;
 const TYPEAHEAD_TIMEOUT_MS = 1200;
+const SELECTION_SETTLE_MS = 60;
 const MAX_VALUE_ANCESTORS = 3;
 
 /** Ant Design shows options without an ARIA role; its role=option list is an invisible stub. */
@@ -58,28 +61,46 @@ export function comboboxHasValue(trigger: HTMLElement): boolean {
   return isInput(trigger) ? valueBesideInput(trigger) : showsValue(displayedText(trigger));
 }
 
+/** The selection a person can see, or an empty string. */
+export function comboboxValue(trigger: HTMLElement): string {
+  const input = isInput(trigger) ? trigger : trigger.querySelector("input");
+  const text = input?.value.trim() || displayedText(trigger);
+  return showsValue(text) ? text : "";
+}
+
+const isOpen = (trigger: HTMLElement): boolean =>
+  trigger.getAttribute("aria-expanded") === "true" || listboxes(trigger).length > 0;
+
+/** True for the option already chosen. Clicking that again would clear it in a clearable dropdown. */
+const isAlreadySelected = ({ element, label }: OptionChoice, selected: string): boolean =>
+  element.getAttribute("aria-selected") === "true" || element.hasAttribute("data-checked") || selected === label;
+
 /**
  * Opens a role-based dropdown and clicks one option. Only the trigger and elements with
  * role=option are ever clicked, so this cannot reach a submit button or other page action.
  * Returns the selected label, or undefined when nothing could be selected.
  */
 export async function fillCombobox(trigger: HTMLElement, targets: string[], query: string, mode: SelectionMode): Promise<string | undefined> {
+  const selected = comboboxValue(trigger);
   press(trigger);
-  let opened = await waitFor(() => openOptions(trigger).length > 0, OPEN_TIMEOUT_MS);
+  const hasOptions = (): boolean => openOptions(trigger).length > 0;
+  let opened = await waitFor(hasOptions, OPEN_TIMEOUT_MS);
+  // An open list with nothing in it yet is still loading.
+  if (!opened && isOpen(trigger)) opened = await waitFor(hasOptions, LOADING_TIMEOUT_MS);
 
   // Type-ahead comboboxes only offer options once the user has typed something.
   const typeable = isInput(trigger) && !trigger.readOnly;
   if (!opened && typeable) {
     writeValue(trigger, query);
-    opened = await waitFor(() => openOptions(trigger).length > 0, TYPEAHEAD_TIMEOUT_MS);
-    if (!opened) return query;
+    opened = await waitFor(hasOptions, TYPEAHEAD_TIMEOUT_MS);
+    if (!opened) return trigger.value.trim() ? query : undefined;
   }
 
   const choice = pickChoice(openOptions(trigger), targets, mode);
-  if (choice) {
-    press(choice.element);
-    return choice.label;
-  }
-  if (trigger.getAttribute("aria-expanded") === "true") press(trigger);
-  return undefined;
+  if (choice && !isAlreadySelected(choice, selected)) press(choice.element);
+  else if (trigger.getAttribute("aria-expanded") === "true") press(trigger);
+  if (!choice) return undefined;
+
+  await delay(SELECTION_SETTLE_MS);
+  return comboboxHasValue(trigger) ? choice.label : undefined;
 }

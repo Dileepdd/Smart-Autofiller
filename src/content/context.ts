@@ -87,6 +87,25 @@ function surroundingText(element: HTMLElement): string {
   return "";
 }
 
+const FORMAT_HINT = /\b(?:format|pattern|e\.?g\.?|example|ex)\b\s*[:.-]?\s*([a-z0-9#]+(?:[-/. ][a-z0-9#]+)+)/i;
+const BARE_MASK = /^[x#9]+(?:[-/. ][x#9]+)+$/i;
+
+function hintedFormat(text: string): string | undefined {
+  const trimmed = text.trim();
+  return BARE_MASK.test(trimmed) ? trimmed : FORMAT_HINT.exec(trimmed)?.[1];
+}
+
+/** A format the page spells out for this field, such as "Format: XX-XXXXXXX" under it. */
+export function formatHint(element: HTMLElement): string | undefined {
+  const texts = [element.getAttribute("placeholder") ?? "", element.getAttribute("title") ?? "", ...describedByTexts(element)];
+  let node = element.parentElement;
+  for (let depth = 0; node && node.tagName !== "BODY" && depth < MAX_ANCESTORS && !holdsAnotherField(node, element); depth++) {
+    texts.push(textOf(node));
+    node = node.parentElement;
+  }
+  return texts.map(hintedFormat).find(Boolean);
+}
+
 /** The text a person sees for a radio button or similar choice. */
 export const choiceLabel = (element: HTMLElement): string => labelTexts(element).join(" ").trim();
 

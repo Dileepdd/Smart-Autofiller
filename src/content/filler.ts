@@ -3,7 +3,7 @@ import { customRuleValue, dateCandidates, generateValue, isDateKind, pickDate } 
 import { AutofillSettings, FillResult, SelectionMode } from "../shared/types";
 import { classifyField, FieldKind, getFieldDescription } from "./classifier";
 import { choiceLabel } from "./context";
-import { comboboxHasValue, fillCombobox } from "./customDropdown";
+import { comboboxHasValue, comboboxValue, fillCombobox } from "./customDropdown";
 import { isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePicker";
 import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isInput, isSelect, isVisible } from "./detector";
 import { hasSelection, pickChoice, pickMany, toChoice, usableOptions } from "./dropdown";
@@ -107,13 +107,40 @@ async function fillComboboxField(run: FillRun, trigger: HTMLElement, kind: Field
   const query = targets[0] ?? generateValue(kind, run.settings, run.profile);
   remember(trigger);
   const label = await fillCombobox(trigger, targets, query, mode);
-  if (!label) return markFailed(run, trigger, "Could not open dropdown");
+  if (!label) {
+    adoptShownValue(run, trigger, kind);
+    return markFailed(run, trigger, "Could not select an option");
+  }
   adoptChoice(run, kind, label);
   markFilled(run, trigger);
 }
 
 /** A dropdown that may still be waiting for a parent selection to enable or populate it. */
-const isPendingSelect = (select: HTMLSelectElement): boolean => isInactive(select) || usableOptions(select).length === 0;
+const isPending = (element: HTMLElement): boolean =>
+  isInactive(element) || (isSelect(element) && usableOptions(element).length === 0);
+
+function shownValue(element: HTMLElement): string {
+  if (isSelect(element)) return hasSelection(element) ? element.options[element.selectedIndex].text.trim() : "";
+  if (isCombobox(element)) return comboboxValue(element);
+  return isInput(element) ? element.value.trim() : "";
+}
+
+function adoptShownValue(run: FillRun, element: HTMLElement, kind: FieldKind): void {
+  const value = shownValue(element);
+  if (value) adoptChoice(run, kind, value);
+}
+
+/** Location already on the page and staying there must drive the data, or a US form gets an Indian ZIP. */
+function adoptPresetLocation(run: FillRun, fields: HTMLElement[]): void {
+  const presets = fields.flatMap((element) => {
+    const kind = classifyField(element);
+    const locked = isSelect(element) || isCombobox(element) ? isInactive(element) : isDisabled(element);
+    return DROPDOWN_ORDER.includes(kind) && (locked || !run.settings.fillExisting) ? [{ element, kind }] : [];
+  });
+  for (const kind of DROPDOWN_ORDER) {
+    presets.filter((preset) => preset.kind === kind).forEach(({ element }) => adoptShownValue(run, element, kind));
+  }
+}
 
 async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<void> {
   const deadline = Date.now() + DROPDOWN_BUDGET_MS;
@@ -125,15 +152,14 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
   let queue = [...dropdowns].sort((a, b) => rank(a) - rank(b));
 
   while (queue.length) {
-    const pending: HTMLSelectElement[] = [];
+    const pending: HTMLElement[] = [];
     for (const element of queue) {
       const kind = kinds.get(element) ?? "text";
       if (!element.isConnected || !isVisible(element)) { run.skipped.add(element); continue; }
       if (Date.now() > deadline) { markFailed(run, element, "Ran out of time"); continue; }
       if (isSelect(element) && !run.settings.fillExisting && hasSelection(element)) { markSkipped(run, element); continue; }
-      if (isSelect(element) && isPendingSelect(element)) { pending.push(element); continue; }
-      if (!isSelect(element) && isInactive(element)) { markSkipped(run, element); continue; }
       if (!isSelect(element) && !run.settings.fillExisting && comboboxHasValue(element)) { markSkipped(run, element); continue; }
+      if (isPending(element)) { pending.push(element); continue; }
 
       try {
         if (isSelect(element)) fillSelect(run, element, kind);
@@ -146,8 +172,8 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
     }
 
     const canUnblock = run.settings.detectDynamic && run.changed && pending.length > 0;
-    if (!canUnblock || !(await waitFor(() => pending.some((select) => !isPendingSelect(select)), DEPENDENT_WAIT_MS))) {
-      pending.forEach((select) => markSkipped(run, select));
+    if (!canUnblock || !(await waitFor(() => pending.some((element) => !isPending(element)), DEPENDENT_WAIT_MS))) {
+      pending.forEach((element) => markSkipped(run, element));
       return;
     }
     queue = pending;
@@ -230,10 +256,14 @@ async function fillText(run: FillRun, element: HTMLInputElement | HTMLTextAreaEl
 /** Widgets such as date pickers can discard a value after blur, so success is only known once the page settles. */
 function reportClearedFields(run: FillRun): void {
   for (const element of run.written) {
-    if (!element.isConnected || element.value !== "") continue;
-    run.result.filled--;
-    run.result.errors++;
-    run.result.details.push(`Field cleared the value: ${describe(element)}`);
+    if (!element.isConnected) continue;
+    if (element.value === "") {
+      run.result.filled--;
+      run.result.errors++;
+      run.result.details.push(`Field cleared the value: ${describe(element)}`);
+    } else if (element.getAttribute("aria-invalid") === "true") {
+      run.result.details.push(`Check validation: ${describe(element)}`);
+    }
   }
 }
 
@@ -287,6 +317,7 @@ async function fillPasses(run: FillRun): Promise<void> {
     const fields = collectFields(document, { includeFrames, scope: fillScope }).filter((element) => !run.done.has(element));
     run.changed = false;
 
+    adoptPresetLocation(run, fields);
     await fillDropdowns(run, fields.filter(isDropdown));
     for (const element of fields.filter((field) => !isDropdown(field))) await fillField(run, element);
 

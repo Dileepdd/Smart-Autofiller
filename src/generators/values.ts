@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { FieldKind } from "../content/classifier";
-import { splitWords } from "../content/context";
+import { formatHint, splitWords } from "../content/context";
 import { AutofillSettings } from "../shared/types";
 import { pickInt, Profile, renderProfileTemplate } from "./profile";
 
@@ -175,6 +175,27 @@ function fitLength(value: string, kind: GeneratedKind, maxLength: number): strin
   return (identifier ? value.replace(/[\s-]/g, "") : value).slice(0, maxLength);
 }
 
+const HINTED_KINDS: readonly GeneratedKind[] = ["taxId", "gstin", "phone", "zip", "employeeId", "customerId", "invoiceId", "text"];
+
+/** Letters become A and digits 9. In a mask, X and # stand for digits, as in XX-XXXXXXX. */
+const shapeOf = (text: string): string => text.replace(/\d/g, "9").replace(/[a-z]/gi, "A");
+const maskShape = (mask: string): string => shapeOf(mask.replace(/[x#]/gi, "9"));
+
+/** Rewrites a value into the format the page asks for, reusing its characters so repeats stay equal. */
+function fitFormat(value: string, kind: GeneratedKind, element: TextField): string {
+  const mask = HINTED_KINDS.includes(kind) ? formatHint(element) : undefined;
+  if (!mask) return value;
+  const shape = maskShape(mask);
+  if (shapeOf(value) === shape) return value;
+  const digits = digitsOf(value) || "123456789";
+  const letters = value.replace(/[^a-z]/gi, "").toUpperCase() || "ABCDEF";
+  let used = 0;
+  return shape.replace(/[9A]/g, (slot) => {
+    const source = slot === "9" ? digits : letters;
+    return source[used++ % source.length];
+  });
+}
+
 /** Keeps a generated value inside the limits the field itself declares. */
 function fitConstraints(value: string, kind: GeneratedKind, element: TextField, profile: Profile): string {
   const type = element.getAttribute("type")?.toLowerCase();
@@ -216,7 +237,7 @@ function uniqueVariant(kind: GeneratedKind, value: string, repeat: number): stri
 /** `repeat` counts earlier fields of this kind, for filling them with different values. */
 export function generateValue(kind: GeneratedKind, settings: AutofillSettings, profile: Profile, element?: TextField, repeat = 0): string {
   const value = uniqueVariant(kind, GENERATORS[kind]({ settings, profile, element }), repeat);
-  return element ? fitConstraints(value, kind, element, profile) : value;
+  return element ? fitConstraints(fitFormat(value, kind, element), kind, element, profile) : value;
 }
 
 /** Returns the value of the first custom rule whose keyword appears in the field's description. */

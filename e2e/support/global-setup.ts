@@ -15,7 +15,7 @@ async function buildFixtures(): Promise<void> {
   await rm(generated, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   await mkdir(generated, { recursive: true });
   const fixtures = join(e2eRoot, "fixtures");
-  const apps = { react: "react.jsx", vue: "vue.js", angular: "angular.js", libs: "libs.jsx", dates: "dates.jsx" };
+  const apps = { react: "react.jsx", vue: "vue.js", angular: "angular.js", libs: "libs.jsx", dates: "dates.jsx", vendor: "vendor.jsx" };
 
   await build({
     entryPoints: Object.fromEntries(Object.entries(apps).map(([name, file]) => [name, join(fixtures, file)])),

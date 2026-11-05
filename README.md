@@ -65,7 +65,7 @@ One click runs this pipeline. It repeats for fields revealed by earlier selectio
 | Detect | `content/detector.ts` | Finds fields in the page, open shadow roots and same-origin iframes |
 | Understand | `content/context.ts`, `content/classifier.ts` | Weighs `autocomplete`, labels, ARIA, names, placeholders and nearby text; a parent shared with other fields is ignored |
 | Generate | `generators/profile.ts`, `generators/values.ts`, `generators/locales.ts` | Builds one coherent profile, then fits each value to the field's own limits |
-| Dropdowns | `content/dropdown.ts`, `content/customDropdown.ts` | Fills Country → State → City first, waiting up to 2.5 seconds for dependent lists |
+| Dropdowns | `content/dropdown.ts`, `content/customDropdown.ts` | Fills Country → State → City first, waiting up to 2.5 seconds for a dependent list to enable and up to 5 seconds for an open list to load |
 | Dates | `content/datePicker.ts` | Tries date formats until a picker keeps one, or uses the calendar |
 | Write | `content/writers.ts` | Sends the events frameworks expect, including focus and blur |
 | Report | `content/filler.ts` | Checks values stuck, and lists problems in the popup |
@@ -117,6 +117,8 @@ Select a profile in **Saved profiles** or from the toolbar icon's right-click me
 
 Country sets location, phone and tax ID formats: EIN (US), PAN and GSTIN (India), VAT (UK), Business Number (Canada) and ABN (Australia).
 
+Location already on the page wins when it stays there: a form preset to United States gets US data, whatever country is configured. A format the page spells out, such as `Format: XX-XXXXXXX` or `e.g. AB-1234`, is followed for IDs, phones and postal codes; `X` and `#` are read as digits.
+
 Values also adapt to the field. `maxlength`, `pattern`, `min`, `max`, `minlength` and `type="number"` are respected, and a shortened phone number keeps its local digits, so the same number appears across phone fields.
 
 Custom rules take one `keyword = value` per line, for example `employee id = EMP-{number:1000-9999}` or `nickname = {firstName}`. Keywords ignore case and must appear as whole words in the field's description. Tokens are listed in `shared/template.ts`. Rules take priority over generated values, and also select the matching option in a dropdown, but they can never reach a disabled, readonly or hidden field. Invalid rules are reported with their line number.
@@ -154,6 +156,7 @@ Checked by `npm run test:e2e` in Playwright's Chromium with the built extension.
 | Dependent dropdowns in React, Vue and Angular | Works |
 | MUI TextField, Select, Autocomplete | Works |
 | react-select, Headless UI Listbox, Ant Design Input and Select | Works |
+| Mantine Select with server-loaded options, plain and searchable | Works |
 | Date pickers: Ant Design, MUI X, react-datepicker, Element Plus | Works, by typing |
 | Date picker: flatpickr | Works, through its calendar |
 | Names, email, company, domain, website, tax IDs, phones, postal codes and addresses for all five countries | Works |
