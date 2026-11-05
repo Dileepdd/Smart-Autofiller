@@ -16,10 +16,10 @@ const byId = <T extends HTMLElement>(id: string): T => {
   return element as T;
 };
 
-const status = (message: string, isError = false): void => {
+const status = (message: string, isWarning = false): void => {
   const node = byId<HTMLParagraphElement>("status");
   node.textContent = message;
-  node.classList.toggle("is-error", isError);
+  node.classList.toggle("is-warning", isWarning);
 };
 
 function showDetails(details: string[]): void {

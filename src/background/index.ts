@@ -4,8 +4,10 @@ import { getSettings, saveSettings } from "../shared/settings";
 import { FillResult } from "../shared/types";
 
 const NAME = "Smart Autofill";
-const BADGE_OK = "#0b57d0";
-const BADGE_PROBLEM = "#b3261e";
+const BADGE_OK = "#7c2ee6";
+const BADGE_WARNING = "#f9ab00";
+const BADGE_TEXT_OK = "#ffffff";
+const BADGE_TEXT_WARNING = "#202124";
 const MAX_BADGE_COUNT = 999;
 const UNDO_MENU = "undo";
 const PROFILE_MENU = "profiles";
@@ -56,9 +58,10 @@ function applySettings(): Promise<void> {
   return applying;
 }
 
-async function showOnIcon(tabId: number, badge: string, title: string, isProblem: boolean): Promise<void> {
+async function showOnIcon(tabId: number, badge: string, title: string, isWarning: boolean): Promise<void> {
   await Promise.all([
-    chrome.action.setBadgeBackgroundColor({ tabId, color: isProblem ? BADGE_PROBLEM : BADGE_OK }),
+    chrome.action.setBadgeBackgroundColor({ tabId, color: isWarning ? BADGE_WARNING : BADGE_OK }),
+    chrome.action.setBadgeTextColor({ tabId, color: isWarning ? BADGE_TEXT_WARNING : BADGE_TEXT_OK }),
     chrome.action.setBadgeText({ tabId, text: badge }),
     chrome.action.setTitle({ tabId, title })
   ]);

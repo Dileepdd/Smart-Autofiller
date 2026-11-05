@@ -9,6 +9,7 @@
   --accent-hover: #0842a0;
   --on-accent: #ffffff;
   --danger: #b3261e;
+  --warning: #9a6700;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +23,7 @@
     --accent-hover: #d3e3fd;
     --on-accent: #062e6f;
     --danger: #f2b8b5;
+    --warning: #fdd663;
   }
 }
 
@@ -88,7 +90,8 @@ body {
 .hint { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .status { margin: 8px 0 0; }
 .status:empty { display: none; }
-.status.is-error, .error { color: var(--danger); }
+.status.is-warning { color: var(--warning); }
+.error { color: var(--danger); }
 .error { margin: 0 0 8px; }
 
 .summary {

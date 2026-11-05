@@ -25,6 +25,7 @@ function fakeChrome(stored: object = {}, profiles?: object) {
       setPopup: vi.fn(async () => undefined),
       setBadgeText: vi.fn(async () => undefined),
       setBadgeBackgroundColor: vi.fn(async () => undefined),
+      setBadgeTextColor: vi.fn(async () => undefined),
       setTitle: vi.fn(async () => undefined)
     },
     scripting: { executeScript: vi.fn(async () => []) },
@@ -179,6 +180,7 @@ describe("background worker", () => {
     await listeners.click({ id: 7 });
 
     expect(lastBadge(api)).toEqual([{ tabId: 7, text: "!" }]);
+    expect(api.action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({ tabId: 7, color: "#f9ab00" });
     expect(api.action.setTitle.mock.lastCall).toEqual([expect.objectContaining({ title: expect.stringContaining("Unsupported date picker: start date") })]);
   });
 
