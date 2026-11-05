@@ -157,7 +157,7 @@ test.describe("the real extension", () => {
     const options = await extension.openOptions();
     await options.locator("summary", { hasText: "Filling behavior" }).click();
     await options.uncheck("#fillOnOpen");
-    await options.waitForFunction("chrome.action.getPopup({}).then((popup) => popup !== '')");
+    await extension.waitForPopupMode(options, true);
     await options.close();
 
     const popup = await extension.clickToolbarIcon(page);

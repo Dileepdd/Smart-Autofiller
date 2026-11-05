@@ -1,4 +1,4 @@
-import { BrowserContext, CDPSession, chromium, Page, test as base } from "@playwright/test";
+import { BrowserContext, CDPSession, chromium, Page, test as base, Worker } from "@playwright/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -165,16 +165,12 @@ export class Extension {
 
   /** Runs the toolbar button for this page's tab, which is what grants activeTab, and opens the real popup. */
   async clickToolbarIcon(page: Page): Promise<Popup> {
-    // Chrome can ignore a click that lands while the previous popup is still closing, which
-    // only automation is fast enough to do, so a second attempt is allowed.
-    for (let attempt = 0; attempt < 2; attempt++) {
-      await this.triggerAction(page);
-      const deadline = Date.now() + POPUP_TIMEOUT_MS / 2;
-      while (Date.now() < deadline) {
-        const popup = await this.popupTarget();
-        if (popup) return Popup.connect(popup.webSocketDebuggerUrl, () => this.isPopupOpen(), () => this.iconState());
-        await sleep(POLL_MS);
-      }
+    await this.triggerAction(page);
+    const deadline = Date.now() + POPUP_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      const popup = await this.popupTarget();
+      if (popup) return Popup.connect(popup.webSocketDebuggerUrl, () => this.isPopupOpen(), () => this.iconState());
+      await sleep(POLL_MS);
     }
     throw new Error("The popup did not open.");
   }
@@ -230,8 +226,17 @@ export class Extension {
     const page = await this.openPopupWithoutToolbar();
     await page.evaluate("chrome.storage.local.clear()");
     await page.evaluate(expression);
-    await page.waitForFunction(`chrome.action.getPopup({}).then((popup) => (popup !== "") === ${popupExpected})`);
+    await this.waitForPopupMode(page, popupExpected);
     await page.close();
+  }
+
+  /** Polls by hand, because waitForFunction treats a returned promise as already true. */
+  async waitForPopupMode(page: Page, popupExpected: boolean): Promise<void> {
+    const deadline = Date.now() + POPUP_TIMEOUT_MS;
+    while ((await page.evaluate("chrome.action.getPopup({})") !== "") !== popupExpected) {
+      if (Date.now() > deadline) throw new Error(`The worker never set popup mode to ${popupExpected}.`);
+      await sleep(POLL_MS);
+    }
   }
 
   /** Runs the toolbar button where no popup is expected. */
@@ -239,34 +244,30 @@ export class Extension {
     await this.triggerAction(page);
   }
 
-  /** The badge and tooltip Chrome shows on the icon for whichever tab has one. */
+  /**
+   * The badge and tooltip Chrome shows on the icon for whichever tab has one. This asks the worker
+   * directly: opening a tab here would push the form into the background, where Chrome throttles timers.
+   */
   async iconState(): Promise<{ badge: string; title: string }> {
-    const page = await this.openPopupWithoutToolbar();
     const read = `(async () => {
       for (const { id: tabId } of await chrome.tabs.query({})) {
         const badge = await chrome.action.getBadgeText({ tabId });
         if (badge && badge !== "…") return { badge, title: await chrome.action.getTitle({ tabId }) };
       }
-      return undefined;
+      return null;
     })()`;
     const deadline = Date.now() + POPUP_TIMEOUT_MS;
     while (Date.now() < deadline) {
-      const state = await page.evaluate(read) as { badge: string; title: string } | undefined;
-      if (state) {
-        await page.close();
-        return state;
-      }
+      const state = await (await this.worker()).evaluate(read) as { badge: string; title: string } | null;
+      if (state) return state;
       await sleep(POLL_MS);
     }
-    const seen = await page.evaluate(`(async () => {
-      const tabs = await chrome.tabs.query({});
-      return {
-        popup: await chrome.action.getPopup({}),
-        badges: await Promise.all(tabs.map(({ id: tabId }) => chrome.action.getBadgeText({ tabId }))),
-        popupOpen: ${await this.isPopupOpen()}
-      };
-    })()`);
-    throw new Error(`The icon never showed a result: ${JSON.stringify(seen)}`);
+    throw new Error("The icon never showed a result.");
+  }
+
+  private async worker(): Promise<Worker> {
+    const isOurs = (worker: Worker): boolean => worker.url().startsWith(`chrome-extension://${this.id}/`);
+    return this.context.serviceWorkers().find(isOurs) ?? this.context.waitForEvent("serviceworker", isOurs);
   }
 }
 
