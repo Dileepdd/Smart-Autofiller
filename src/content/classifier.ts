@@ -5,6 +5,7 @@ export type FieldKind =
   | "company" | "companySize" | "department" | "jobTitle" | "domain" | "website" | "username" | "password"
   | "employeeId" | "customerId" | "invoiceId" | "currency" | "amount"
   | "phone" | "age" | "experience" | "taxId" | "gstin" | "zip" | "street" | "addressLine2"
+  | "aadhaar" | "pan" | "ifsc" | "upi" | "bankAccount" | "passport" | "voterId" | "drivingLicence"
   | "address" | "city" | "state" | "country" | "dateOfBirth" | "date" | "futureDate"
   | "dateTime" | "time" | "month" | "week" | "url" | "number" | "message" | "text"
   | "skip";
@@ -13,7 +14,12 @@ const AUTOCOMPLETE_WEIGHT = 100;
 
 /** The first match wins, so specific terms sit above the general terms they contain. */
 const RULES: ReadonlyArray<readonly [FieldKind, RegExp]> = [
+  // Before skip: "Aadhaar Card No" is an ID, not the payment card that rule protects.
+  ["aadhaar", /\b(aadhaa?r|adhaa?r|uidai|uid ?(no|number))\b/],
+  ["pan", /\b(pan( ?(no|number|card))?|permanent account)\b/],
+  ["voterId", /\b(voter ?(id|card)|epic ?(no|number)?)\b/],
   ["skip", /\b(search|card ?(number|no)|credit card|debit card|cvv|cvc|security code|one time (code|password)|otp|captcha|verification code)\b/],
+  ["upi", /\b(upi|vpa)\b/],
   ["email", /\b(e ?mail|email ?address)\b/],
   ["password", /\b(pass ?word|pass ?code|passwd|pwd)\b/],
   ["phone", /\b(phone ?(no|number)?|mobile ?(no|number)?|telephone|tel|cell ?(phone|number)?|whats ?app|fax|contact ?(no|number))\b/],
@@ -30,7 +36,11 @@ const RULES: ReadonlyArray<readonly [FieldKind, RegExp]> = [
   ["domain", /\bdomain\b/],
   ["website", /\b(web ?site|home ?page|company url)\b/],
   ["gstin", /\b(gstin|gst( ?(no|number))?)\b/],
-  ["taxId", /\b(federal tax|tax ?id|tax identification|tax ?(no|number)|tin|ein|vat( ?(no|number|id))?|pan( ?(no|number|card))?|abn)\b/],
+  ["ifsc", /\bifsc( ?code)?\b/],
+  ["bankAccount", /\b(bank ?account|account ?(no|number)|acc ?(no|number)|a c ?(no|number))\b/],
+  ["passport", /\bpassport\b/],
+  ["drivingLicence", /\b(driv(ing|ers?)( s)? ?licen[cs]e|dl ?(no|number)|licen[cs]e ?(no|number))\b/],
+  ["taxId", /\b(federal tax|tax ?id|tax identification|tax ?(no|number)|tin|ein|vat( ?(no|number|id))?|abn)\b/],
   ["experience", /\b(experience|yoe|years? of exp|exp years)\b/],
   ["age", /\bage\b/],
   ["zip", /\b(zip( ?code)?|postal( ?code)?|post ?code|pin ?code)\b/],
@@ -92,7 +102,7 @@ const TYPE_KINDS: Readonly<Record<string, readonly FieldKind[]>> = {
   time: ["time"],
   month: ["month"],
   week: ["week"],
-  number: ["age", "experience", "phone", "zip", "taxId", "companySize", "amount", "number"]
+  number: ["age", "experience", "phone", "zip", "taxId", "aadhaar", "bankAccount", "companySize", "amount", "number"]
 };
 
 const matchRule = (text: string): FieldKind | undefined => RULES.find(([, pattern]) => pattern.test(text))?.[0];

@@ -1,10 +1,11 @@
 import { faker, fakerEN_AU, fakerEN_CA, fakerEN_GB, fakerEN_IN, fakerEN_US } from "@faker-js/faker";
 import { PROFILE_TOKENS, renderTemplate } from "../shared/template";
 import { AutofillSettings, CountryCode } from "../shared/types";
+import { createIndianIdentifiers, IndianIdentifiers } from "./identifiers";
 import { City, findCity, findLocale, findRegion, Locale, localeByCode, Region } from "./locales";
 
 /** Everything one fill writes, created up front so related fields agree with each other. */
-export interface Profile {
+export interface Profile extends IndianIdentifiers {
   firstName: string;
   middleName: string;
   lastName: string;
@@ -24,7 +25,6 @@ export interface Profile {
   website: string;
   phone: string;
   taxId: string;
-  gstin: string;
   street: string;
   addressLine2: string;
   city: string;
@@ -96,9 +96,7 @@ function setLocale(profile: Profile, locale: Locale, settings: AutofillSettings)
   profile.countryCode = locale.code;
   profile.currency = settings.currency === "auto" ? locale.currency : settings.currency;
   profile.phone = formatPhone(locale, settings.phoneFormat);
-  profile.taxId = faker.helpers.replaceSymbols(locale.taxId);
-  // A GSTIN wraps the holder's PAN. Other countries have no equivalent, so they use their tax ID.
-  profile.gstin = locale.code === "IN" ? `${pickInt(10, 37)}${profile.taxId}1Z${pickInt(0, 9)}` : profile.taxId;
+  profile.taxId = locale.code === "IN" ? profile.pan : faker.helpers.replaceSymbols(locale.taxId);
   setCity(profile, region, faker.helpers.arrayElement(region.cities));
 }
 
@@ -127,6 +125,7 @@ function generateProfile(settings: AutofillSettings): Profile {
   const { age, experience } = pickCareer(settings);
 
   const profile: Profile = {
+    ...createIndianIdentifiers(lastName, localPart),
     firstName,
     middleName,
     lastName,
@@ -147,7 +146,6 @@ function generateProfile(settings: AutofillSettings): Profile {
     website: `https://${domain}`,
     phone: "",
     taxId: "",
-    gstin: "",
     street: faker.location.streetAddress(),
     addressLine2: faker.location.secondaryAddress(),
     city: "",

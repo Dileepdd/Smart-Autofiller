@@ -2,7 +2,7 @@
 export const PROFILE_TOKENS = [
   "firstName", "middleName", "lastName", "fullName", "gender", "email", "username", "password",
   "jobTitle", "department", "age", "dateOfBirth", "experience", "company", "companySize", "domain",
-  "website", "phone", "taxId", "gstin", "street", "addressLine2", "city", "region", "regionCode",
+  "website", "phone", "taxId", "gstin", "aadhaar", "pan", "ifsc", "upi", "bankAccount", "passport", "voterId", "drivingLicence", "street", "addressLine2", "city", "region", "regionCode",
   "postalCode", "country", "countryCode", "currency", "employeeId", "customerId", "invoiceId"
 ] as const;
 

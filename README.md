@@ -121,6 +121,8 @@ Country sets location, phone and tax ID formats: EIN (US), PAN and GSTIN (India)
 
 Location already on the page wins when it stays there: a form preset to United States gets US data, whatever country is configured. A format the page spells out, such as `Format: XX-XXXXXXX` or `e.g. AB-1234`, is followed for IDs, phones and postal codes; `X` and `#` are read as digits.
 
+Indian identifiers are recognised by their labels and keep their format on any country's form: Aadhaar, PAN, GSTIN, IFSC, UPI ID, bank account, passport, voter ID and driving licence. Each is generated once per fill and also works as a `{token}`.
+
 Values also adapt to the field. `maxlength`, `pattern`, `min`, `max`, `minlength` and `type="number"` are respected, and a shortened phone number keeps its local digits, so the same number appears across phone fields.
 
 Custom rules take one `keyword = value` per line, for example `employee id = EMP-{number:1000-9999}` or `nickname = {firstName}`. Keywords ignore case and must appear as whole words in the field's description. Tokens are listed in `shared/template.ts`. Rules take priority over generated values, and also select the matching option in a dropdown, but they can never reach a disabled, readonly or hidden field. Invalid rules are reported with their line number.
@@ -179,7 +181,7 @@ These are local test pages, not a guarantee for every site.
 - A custom dropdown's placeholder is only recognised when it reads like "Select…" or "Choose…". Other placeholder text can look like a value, so that dropdown is skipped.
 - Location data covers a few regions and cities per country. An unsupported country selected by a page keeps its name, while other location fields stay as generated.
 - Regional names come from Faker's data, and company names use the same region.
-- Tax IDs match each country's format but are not checksum-valid. They are test data, not real identifiers, and may fail a validator that checks them properly.
+- Identifiers are test data that follow a format. Aadhaar numbers include a valid Verhoeff check digit, because forms commonly verify it. Other tax IDs, including the GSTIN check character, are not checksum-valid and may fail a validator that checks them properly. A generated number could coincide with a real one, and none will pass a check against a government registry.
 - Postal codes come from a small built-in list, so they are real for the city but few in number.
 - A `type="number"` field cannot hold letters, so UK and Canadian postal codes there are reduced to their digits.
 - A disabled list that never loads adds up to 2.5 seconds to a fill. Dropdowns that never open cost up to 2 seconds each, capped at 20 seconds per pass.

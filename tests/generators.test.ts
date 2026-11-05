@@ -1,7 +1,8 @@
 import { fakerEN_IN } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { findCity, findLocale, LOCALES } from "../src/generators/locales";
-import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, profileTokens } from "../src/generators/profile";
+import { verhoeffDigit } from "../src/generators/identifiers";
+import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, Profile, profileTokens } from "../src/generators/profile";
 import { customRuleValue, dateCandidates, GeneratedKind, generateValue } from "../src/generators/values";
 import { PROFILE_TOKENS } from "../src/shared/template";
 import { AutofillSettings } from "../src/shared/types";
@@ -494,6 +495,52 @@ describe("profile tokens", () => {
   });
 });
 
+describe("Indian identifiers", () => {
+  /** Validates independently of the code that generates the digit. */
+  const isVerhoeffValid = (number: string): boolean => verhoeffDigit(number.slice(0, -1)) === number.at(-1);
+
+  it("computes known Verhoeff check digits", () => {
+    expect(verhoeffDigit("236")).toBe("3");
+    expect(verhoeffDigit("12345")).toBe("1");
+  });
+
+  it("generates Aadhaar numbers with the right shape and check digit", () => {
+    for (const { aadhaar } of sampleProfiles()) {
+      expect(aadhaar).toMatch(/^[2-9]\d{11}$/);
+      expect(isVerhoeffValid(aadhaar)).toBe(true);
+    }
+  });
+
+  it.each<[keyof Profile, RegExp]>([
+    ["pan", /^[A-Z]{3}P[A-Z]\d{4}[A-Z]$/],
+    ["gstin", /^\d{2}[A-Z]{3}P[A-Z]\d{4}[A-Z]1Z\d$/],
+    ["ifsc", /^[A-Z]{4}0\d{6}$/],
+    ["upi", /^[a-z0-9.]+@[a-z]+$/],
+    ["bankAccount", /^[1-9]\d{11}$/],
+    ["passport", /^[A-PR-WY][1-9]\d{6}$/],
+    ["voterId", /^[A-Z]{3}\d{7}$/],
+    ["drivingLicence", /^[A-Z]{2}\d{2}20\d{2}\d{7}$/]
+  ])("generates %s in the right format", (key, format) => {
+    for (const profile of sampleProfiles()) expect(profile[key]).toMatch(format);
+  });
+
+  it("puts the surname initial in the PAN", () => {
+    expect(createProfile(settingsWith({ lastName: "Kumar" })).pan[4]).toBe("K");
+  });
+
+  it("copes with a surname that has no leading letter", () => {
+    expect(createProfile(settingsWith({ lastName: "9Lives" })).pan).toMatch(/^[A-Z]{3}P[A-Z]\d{4}[A-Z]$/);
+  });
+
+  it("follows a spaced Aadhaar format the page asks for", () => {
+    expect(generateFor('<div><input id="field"><p>Format: XXXX XXXX XXXX</p></div>', "aadhaar")).toMatch(/^\d{4} \d{4} \d{4}$/);
+  });
+
+  it("fits an Aadhaar number into a number input", () => {
+    expect(generateFor('<input id="field" type="number">', "aadhaar")).toMatch(/^[2-9]\d{11}$/);
+  });
+});
+
 describe("format hints on the page", () => {
   const hinted = (hint: string, kind: GeneratedKind = "taxId", overrides: Partial<AutofillSettings> = { country: "IN" }): string =>
     generateFor(`<div><label for="field">Federal Tax ID</label><input id="field"><p>${hint}</p></div>`, kind, overrides);
@@ -581,9 +628,11 @@ describe("constrained identifiers", () => {
     expect(gstin).toContain(taxId);
   });
 
-  it("uses the tax ID as the GSTIN outside India", () => {
-    const { gstin, taxId } = createProfile(settingsWith({ country: "GB" }));
-    expect(gstin).toBe(taxId);
+  it("keeps Indian formats for Indian fields on a form for another country", () => {
+    const { gstin, pan, taxId } = createProfile(settingsWith({ country: "GB" }));
+    expect(pan).toMatch(/^[A-Z]{3}P[A-Z]\d{4}[A-Z]$/);
+    expect(gstin).toContain(pan);
+    expect(taxId).toMatch(/^GB\d{9}$/);
   });
 });
 

@@ -6,12 +6,10 @@ interface CountryFormat {
   taxId: RegExp;
   phone: RegExp;
   postal: RegExp;
-  /** Only India has a separate format; elsewhere a GSTIN field receives the tax ID. */
-  gstin?: RegExp;
 }
 
 const COUNTRIES: CountryFormat[] = [
-  { code: "IN", name: "India", taxId: /^[A-Z]{3}P[A-Z]\d{4}[A-Z]$/, phone: /^9\d{4} \d{5}$/, postal: /^\d{6}$/, gstin: /^\d{2}[A-Z]{3}P[A-Z]\d{4}[A-Z]1Z\d$/ },
+  { code: "IN", name: "India", taxId: /^[A-Z]{3}P[A-Z]\d{4}[A-Z]$/, phone: /^9\d{4} \d{5}$/, postal: /^\d{6}$/ },
   { code: "US", name: "United States", taxId: /^12-\d{7}$/, phone: /^\(2\d{2}\) 555-01\d{2}$/, postal: /^\d{5}$/ },
   { code: "GB", name: "United Kingdom", taxId: /^GB\d{9}$/, phone: /^07700 900\d{3}$/, postal: /^[A-Z]{1,2}\d{1,2} \d[A-Z]{2}$/ },
   { code: "CA", name: "Canada", taxId: /^\d{9}RT0001$/, phone: /^\(2\d{2}\) 555-01\d{2}$/, postal: /^[A-Z]\d[A-Z] \d[A-Z]\d$/ },
@@ -51,7 +49,20 @@ test.describe("generated data in a real form", () => {
       expect(state.taxCamel).toBe(state.taxId);
       expect(state.taxShort.length).toBeLessThanOrEqual(12);
       expect(digits(state.taxId)).toContain(digits(state.taxShort).slice(0, 4));
-      expect(state.gstin).toMatch(country.gstin ?? country.taxId);
+
+      // Indian identifiers keep their format on any country's form.
+      expect(state.gstin).toMatch(/^\d{2}[A-Z]{3}P[A-Z]\d{4}[A-Z]1Z\d$/);
+      expect(state.gstin).toContain(state.pan);
+      expect(state.aadhaar).toMatch(/^[2-9]\d{11}$/);
+      expect(state.aadhaarNumber).toBe(state.aadhaar);
+      expect(state.pan).toMatch(/^[A-Z]{3}P[A-Z]\d{4}[A-Z]$/);
+      expect(state.pan[4]).toBe(state.lastName[0].toUpperCase());
+      expect(state.ifsc).toMatch(/^[A-Z]{4}0\d{6}$/);
+      expect(state.upi).toMatch(/^[a-z0-9.]+@[a-z]+$/);
+      expect(state.account).toMatch(/^[1-9]\d{11}$/);
+      expect(state.passport).toMatch(/^[A-Z][1-9]\d{6}$/);
+      expect(state.voter).toMatch(/^[A-Z]{3}\d{7}$/);
+      expect(state.licence).toMatch(/^[A-Z]{2}\d{13}$/);
 
       // Phones, including fields that only take digits. All are the same number.
       expect(state.mobile).toMatch(country.phone);

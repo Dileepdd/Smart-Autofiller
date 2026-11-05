@@ -107,6 +107,14 @@ const GENERATORS: Record<GeneratedKind, (context: GeneratorContext) => string> =
   experience: ({ profile }) => String(profile.experience),
   taxId: ({ profile }) => profile.taxId,
   gstin: ({ profile }) => profile.gstin,
+  aadhaar: ({ profile }) => profile.aadhaar,
+  pan: ({ profile }) => profile.pan,
+  ifsc: ({ profile }) => profile.ifsc,
+  upi: ({ profile }) => profile.upi,
+  bankAccount: ({ profile }) => profile.bankAccount,
+  passport: ({ profile }) => profile.passport,
+  voterId: ({ profile }) => profile.voterId,
+  drivingLicence: ({ profile }) => profile.drivingLicence,
   zip: ({ profile }) => profile.postalCode,
   street: ({ profile }) => profile.street,
   addressLine2: ({ profile }) => profile.addressLine2,
@@ -175,7 +183,7 @@ function fitLength(value: string, kind: GeneratedKind, maxLength: number): strin
   return (identifier ? value.replace(/[\s-]/g, "") : value).slice(0, maxLength);
 }
 
-const HINTED_KINDS: readonly GeneratedKind[] = ["taxId", "gstin", "phone", "zip", "employeeId", "customerId", "invoiceId", "text"];
+const HINTED_KINDS: readonly GeneratedKind[] = ["taxId", "aadhaar", "bankAccount", "phone", "zip", "employeeId", "customerId", "invoiceId", "text"];
 
 /** Letters become A and digits 9. In a mask, X and # stand for digits, as in XX-XXXXXXX. */
 const shapeOf = (text: string): string => text.replace(/\d/g, "9").replace(/[a-z]/gi, "A");
