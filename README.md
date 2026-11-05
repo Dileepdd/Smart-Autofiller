@@ -84,24 +84,26 @@ To add a field type, add it to `FieldKind` and `RULES` in `classifier.ts`. The c
 
 Settings save automatically, persist in `chrome.storage.local` and apply on every site. There are two ways to reach them:
 
-- Right-click the toolbar icon. **Fill on icon click** and **Replace existing values** are ticks in that menu, along with **Undo last fill** and, once you have saved one, **Test profile**. **Options** opens every setting.
+- Right-click the toolbar icon. **Fill on icon click**, **Replace existing values** and **Fill custom dropdowns** are ticks in that menu, along with **Undo last fill** and, once you have saved one, **Test profile**. **Options** opens every setting.
 - Open **Details** on `chrome://extensions` and choose **Extension options**.
 
 By default one click on the toolbar icon fills the page, with no popup. The icon then shows how many fields were filled, or `!` if something needs attention. Hover over the icon for details.
 
-With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page**, the result counts and the settings.
+With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page**, the result counts and the settings. Chrome closes a popup when the page takes focus, which some custom widgets do while being filled. The fill still finishes, and the result is always on the icon too.
 
 | Section | Settings |
 |---|---|
-| Identity | Email domain, domain suffix, age and experience ranges, first and last name, middle name on or off, gender, username style, password pattern, company, department, job title |
+| Identity | Email domain, domain suffix, age and experience ranges, first and last name, middle name on or off, name region (Indian by default), gender, username style, password pattern, company, department, job title |
 | Region | Country (India by default, or United States, United Kingdom, Canada, Australia), phone format, date format, currency, address format |
 | Data generation | Text style, number range, decimals, date range, company size range, and patterns for employee, customer and invoice IDs |
-| Filling behavior | Dropdown, radio, multi-select and checkbox preferences, all forms or the selected form, one-click filling, replacing values, unique repeated values, dynamic fields, same-origin iframes |
+| Filling behavior | Dropdown, radio, multi-select and checkbox preferences, all forms or the selected form, one-click filling, custom dropdowns on or off, replacing values, unique repeated values, dynamic fields, same-origin iframes |
 | Custom rules | One `keyword = value` per line |
 | Saved profiles | Named sets of values, with one active at a time |
 | Advanced | Highlighting, detailed reports, reusing generated data |
 
 Leave a name, company, department or title blank for a generated one. A text field's own date placeholder, such as `dd/mm/yyyy`, takes priority over the date format. A field's own `min` and `max` take priority over the number range, and decimals only apply where the field allows them.
+
+**Fill custom dropdowns** is off by default so a fill is instant. These dropdowns have to be opened and waited for, up to 5 seconds each when options load from a server. Native selects are always filled, and a country shown in a custom dropdown still drives the data. Turn it on in settings or the toolbar icon's right-click menu. Dropdowns with no ARIA roles are found by what appears on the page when they open.
 
 "Selected form" means the form containing the focused field, or otherwise the form with the most fields.
 
@@ -170,13 +172,13 @@ These are local test pages, not a guarantee for every site.
 - Closed shadow roots cannot be reached.
 - A date picker that accepts none of the tried formats is reported as unsupported. A picker that keeps a value it never applied would look filled; flatpickr did this until it got its own handling.
 - If a picker accepts both day-first and month-first dates, a date with a day of 12 or less could have its day and month swapped. It stays a valid date.
-- A dropdown library that uses neither ARIA roles nor a known pattern is reported as an error.
+- A dropdown whose options cannot be told apart from other page content is reported as an error.
 - jQuery-style widgets such as Select2 hide the real `<select>`, so they are skipped as hidden.
 - Rich text editors such as Quill or ProseMirror may ignore direct `contenteditable` writes.
 - Input masks that need individual keystrokes may reformat or reject values.
 - A custom dropdown's placeholder is only recognised when it reads like "Select…" or "Choose…". Other placeholder text can look like a value, so that dropdown is skipped.
 - Location data covers a few regions and cities per country. An unsupported country selected by a page keeps its name, while other location fields stay as generated.
-- Names come from Faker's English data for every country.
+- Regional names come from Faker's data, and company names use the same region.
 - Tax IDs match each country's format but are not checksum-valid. They are test data, not real identifiers, and may fail a validator that checks them properly.
 - Postal codes come from a small built-in list, so they are real for the city but few in number.
 - A `type="number"` field cannot hold letters, so UK and Canadian postal codes there are reduced to their digits.

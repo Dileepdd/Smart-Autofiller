@@ -458,6 +458,48 @@ describe("fillPage custom dropdowns", () => {
     expect(result).toMatchObject({ filled: 0, skipped: 1 });
   });
 
+  it("leaves custom dropdowns alone and says so when that setting is off", async () => {
+    renderCombobox(["India"]);
+    const clicks = vi.fn();
+    find<HTMLElement>("#field").addEventListener("click", clicks);
+
+    const result = await fillPage(settingsWith({ fillCustomDropdowns: false }));
+
+    expect(clicks).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ filled: 0, skipped: 1, errors: 0 });
+    expect(result.details[0]).toContain("Fill custom dropdowns");
+  });
+
+  it("still uses a custom dropdown's country when that setting is off", async () => {
+    render('<div id="field" role="combobox" aria-label="Country">United States</div><div><label for="tax">Tax ID</label><input id="tax"></div>');
+
+    await fillPage(settingsWith({ fillCustomDropdowns: false, fillExisting: true, country: "IN" }));
+
+    expect(find("#tax").value).toMatch(/^12-\d{7}$/);
+  });
+
+  it("still fills native selects when that setting is off", async () => {
+    render('<select id="field"><option value="">Choose</option><option>A</option></select>');
+
+    await fillPage(settingsWith({ fillCustomDropdowns: false }));
+
+    expect(find<HTMLSelectElement>("#field").value).toBe("A");
+  });
+
+  it("finds options with no ARIA roles by what appeared on the page", async () => {
+    render('<div><label id="l">State</label><button id="field" type="button" aria-haspopup="listbox" aria-labelledby="l">Select State</button></div>');
+    const trigger = find<HTMLElement>("#field");
+    trigger.addEventListener("click", () => {
+      document.body.insertAdjacentHTML("beforeend", '<div id="panel"><input placeholder="Search"><div class="item">Alabama</div><div class="item">Texas</div></div>');
+      document.querySelectorAll(".item").forEach((item) => item.addEventListener("click", () => { trigger.textContent = item.textContent; }));
+    });
+
+    const result = await fillPage(settingsWith());
+
+    expect(trigger.textContent).toBe("Alabama");
+    expect(result).toMatchObject({ filled: 1, errors: 0 });
+  });
+
   it("treats a zero-width space as empty, as MUI renders in an empty select", async () => {
     renderCombobox(["India"]);
     find<HTMLElement>("#field").innerHTML = "<span>\u200b</span>";

@@ -1,3 +1,4 @@
+import { fakerEN_IN } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { findCity, findLocale, LOCALES } from "../src/generators/locales";
 import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, profileTokens } from "../src/generators/profile";
@@ -332,6 +333,32 @@ describe("identity settings", () => {
 
   it("uses a custom job title and department", () => {
     expect(createProfile(settingsWith({ jobTitle: "QA Lead", department: "Engineering" }))).toMatchObject({ jobTitle: "QA Lead", department: "Engineering" });
+  });
+});
+
+describe("name region", () => {
+  const surnames = (faker: typeof fakerEN_IN): string[] => Object.values(faker.rawDefinitions.person?.last_name ?? {}).flat() as string[];
+  const indian = surnames(fakerEN_IN);
+
+  it("uses Indian names and email addresses by default", () => {
+    for (const { lastName, email } of sampleProfiles({ nameRegion: "IN", country: "US" })) {
+      expect(indian).toContain(lastName);
+      expect(email).toContain(lastName.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    }
+  });
+
+  it("can use another region's names", () => {
+    const names = sampleProfiles({ nameRegion: "US" }).map(({ lastName }) => lastName);
+    expect(names.some((name) => !indian.includes(name))).toBe(true);
+  });
+
+  it("can follow the country", () => {
+    for (const { lastName } of sampleProfiles({ nameRegion: "country", country: "IN" })) expect(indian).toContain(lastName);
+  });
+
+  it("stays fixed when reusing data", () => {
+    const settings = settingsWith({ reuseProfile: true, profileSeed: 9, nameRegion: "IN" });
+    expect(createProfile(settings).fullName).toBe(createProfile(settings).fullName);
   });
 });
 

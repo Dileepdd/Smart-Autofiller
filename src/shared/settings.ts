@@ -6,6 +6,7 @@ const KEY = "smartAutofillSettings";
 /** Accepted values for each setting that has a fixed list. */
 const CHOICES: Partial<Record<keyof AutofillSettings, readonly unknown[]>> = {
   gender: ["any", "male", "female"],
+  nameRegion: ["IN", "US", "GB", "CA", "AU", "country"],
   usernameMode: ["name", "random"],
   country: ["US", "IN", "GB", "CA", "AU"],
   phoneFormat: ["national", "international"],

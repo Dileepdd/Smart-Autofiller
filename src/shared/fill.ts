@@ -8,6 +8,11 @@ export async function fillTab(tabId: number, settings: AutofillSettings): Promis
   return response;
 }
 
+/** Sent by the popup. The worker runs the fill, because a popup closes if the page takes focus. */
+export const FILL_TAB_MESSAGE = "SMART_AUTOFILL_FILL_TAB";
+
+export type FillOutcome = { result: FillResult } | { error: string };
+
 /** Asks the tab to restore the values from before its last fill. */
 export async function undoFill(tabId: number): Promise<UndoResult> {
   try {

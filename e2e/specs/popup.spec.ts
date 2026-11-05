@@ -222,6 +222,8 @@ test.describe("the real extension", () => {
     expect(await options.isChecked("#fillExisting")).toBe(true);
     expect(await options.isChecked("#fillOnOpen")).toBe(true);
     expect(await options.inputValue("#checkboxMode")).toBe("required");
+    expect(await options.inputValue("#nameRegion")).toBe("IN");
+    expect(await options.isChecked("#fillCustomDropdowns")).toBe(false);
     await options.close();
   });
 

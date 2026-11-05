@@ -65,6 +65,12 @@
         </div>
         <div class="row"><label for="firstName">First name</label><input id="firstName" data-setting type="text" placeholder="Random" /></div>
         <div class="row"><label for="lastName">Last name</label><input id="lastName" data-setting type="text" placeholder="Random" /></div>
+        <div class="row"><label for="nameRegion">Names and email</label>
+          <select id="nameRegion" data-setting>
+            <option value="IN">Indian</option><option value="US">American</option><option value="GB">British</option>
+            <option value="CA">Canadian</option><option value="AU">Australian</option><option value="country">Same as country</option>
+          </select>
+        </div>
         <div class="row"><label for="gender">Gender</label>
           <select id="gender" data-setting><option value="any">Any</option><option value="male">Male</option><option value="female">Female</option></select>
         </div>
@@ -159,6 +165,7 @@
         </div>
         <label class="check"><input id="fillOnOpen" data-setting type="checkbox" /> Fill on icon click, without this popup</label>
         <label class="check"><input id="fillExisting" data-setting type="checkbox" /> Replace existing values</label>
+        <label class="check"><input id="fillCustomDropdowns" data-setting type="checkbox" /> Fill custom dropdowns (slower)</label>
         <label class="check"><input id="uniqueValues" data-setting type="checkbox" /> Unique values in repeated fields</label>
         <label class="check"><input id="detectDynamic" data-setting type="checkbox" /> Fill fields that appear during a fill</label>
         <label class="check"><input id="includeFrames" data-setting type="checkbox" /> Include same-origin iframes</label>

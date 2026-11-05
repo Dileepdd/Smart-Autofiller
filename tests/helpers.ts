@@ -13,5 +13,6 @@ export function find<T extends Element = HTMLInputElement>(selector: string): T 
 export const settingsWith = (overrides: Partial<AutofillSettings> = {}): AutofillSettings => ({
   ...DEFAULT_SETTINGS,
   fillExisting: false,
+  fillCustomDropdowns: true,
   ...overrides
 });

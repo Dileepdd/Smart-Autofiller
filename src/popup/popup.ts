@@ -1,4 +1,4 @@
-import { fillErrorMessage, fillTab, undoFill, undoMessage } from "../shared/fill";
+import { FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, undoFill, undoMessage } from "../shared/fill";
 import { activeProfile, getEffectiveSettings, getProfileStore } from "../shared/profiles";
 import { getSettings, saveSettings } from "../shared/settings";
 import { FillResult } from "../shared/types";
@@ -92,7 +92,9 @@ async function fillActiveTab(): Promise<void> {
   status("Filling…");
   try {
     await saveSettings(readForm(await getSettings()));
-    showResult(await fillTab(await activeTabId(), await getEffectiveSettings()));
+    const outcome = await chrome.runtime.sendMessage({ type: FILL_TAB_MESSAGE, tabId: await activeTabId() }) as FillOutcome;
+    if ("error" in outcome) status(outcome.error, true);
+    else showResult(outcome.result);
   } catch (error) {
     status(fillErrorMessage(error), true);
   } finally {

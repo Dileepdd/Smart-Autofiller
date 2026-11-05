@@ -1,0 +1,32 @@
+<!doctype html>
+<html><body>
+<form>
+  <div><label id="stateLabel">State</label><button id="state" type="button" aria-haspopup="listbox" aria-labelledby="stateLabel" aria-expanded="false">Select State</button></div>
+  <div><label id="emptyLabel">City</label><button id="empty" type="button" aria-haspopup="listbox" aria-labelledby="emptyLabel" aria-expanded="false">Select City</button></div>
+  <div><label for="email">Email</label><input id="email"></div>
+</form>
+<script>
+  // A hand-built dropdown: a search box and plain items with no ARIA roles, added to the body on open.
+  function dropdown(id, items) {
+    const trigger = document.getElementById(id);
+    let panel = null;
+    const close = () => { panel?.remove(); panel = null; trigger.setAttribute("aria-expanded", "false"); };
+    trigger.addEventListener("click", () => {
+      if (panel) return close();
+      trigger.setAttribute("aria-expanded", "true");
+      panel = document.createElement("div");
+      panel.className = "popover";
+      panel.innerHTML = `<input placeholder="Search..."><div class="scroll">${items.map((item) => `<div class="item">${item}</div>`).join("")}</div>`;
+      panel.querySelectorAll(".item").forEach((item) => item.addEventListener("click", () => { trigger.textContent = item.textContent; close(); }));
+      document.body.append(panel);
+    });
+  }
+  dropdown("state", ["Alabama", "California", "Texas"]);
+  dropdown("empty", []);
+  window.__state = () => ({
+    state: document.getElementById("state").textContent,
+    email: document.getElementById("email").value,
+    panels: document.querySelectorAll(".popover").length
+  });
+</script>
+</body></html>

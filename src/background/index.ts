@@ -1,4 +1,4 @@
-import { fillErrorMessage, fillTab, undoFill, undoMessage } from "../shared/fill";
+import { FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, fillTab, undoFill, undoMessage } from "../shared/fill";
 import { getEffectiveSettings, getProfileStore, saveProfileStore, selectProfile } from "../shared/profiles";
 import { getSettings, saveSettings } from "../shared/settings";
 import { FillResult } from "../shared/types";
@@ -15,7 +15,8 @@ const NO_PROFILE = `${PROFILE_PREFIX}none`;
 /** Shown when the toolbar icon is right-clicked. Chrome adds its own Options item below these. */
 const SETTING_ITEMS = [
   { id: "fillOnOpen", title: "Fill on icon click" },
-  { id: "fillExisting", title: "Replace existing values" }
+  { id: "fillExisting", title: "Replace existing values" },
+  { id: "fillCustomDropdowns", title: "Fill custom dropdowns (slower)" }
 ] as const;
 
 async function createMenus(): Promise<void> {
@@ -102,12 +103,26 @@ chrome.contextMenus.onClicked.addListener(({ menuItemId, checked }, tab) => {
   void handleMenu(menuItemId, checked, tab?.id);
 });
 
-chrome.action.onClicked.addListener(async ({ id: tabId }) => {
-  if (tabId === undefined) return;
+/** Runs a fill and leaves its result on the icon, where it survives the popup closing. */
+async function fillAndReport(tabId: number): Promise<FillOutcome> {
   await showOnIcon(tabId, "…", `${NAME}: filling`, false);
   try {
-    await showResult(tabId, await fillTab(tabId, await getEffectiveSettings()));
+    const result = await fillTab(tabId, await getEffectiveSettings());
+    await showResult(tabId, result);
+    return { result };
   } catch (error) {
-    await showOnIcon(tabId, "!", `${NAME}: ${fillErrorMessage(error)}`, true);
+    const message = fillErrorMessage(error);
+    await showOnIcon(tabId, "!", `${NAME}: ${message}`, true);
+    return { error: message };
   }
+}
+
+chrome.action.onClicked.addListener(async ({ id: tabId }) => {
+  if (tabId !== undefined) await fillAndReport(tabId);
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== FILL_TAB_MESSAGE) return;
+  void fillAndReport(message.tabId).then(sendResponse);
+  return true;
 });

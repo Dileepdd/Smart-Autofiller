@@ -6,7 +6,7 @@ import { settingsWith } from "./helpers";
 
 describe("DEFAULT_SETTINGS", () => {
   it("defaults to India, filling on one click and replacing existing values", () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ country: "IN", fillExisting: true, fillOnOpen: true, dropdownMode: "match", checkboxMode: "required" });
+    expect(DEFAULT_SETTINGS).toMatchObject({ country: "IN", fillExisting: true, fillOnOpen: true, fillCustomDropdowns: false, nameRegion: "IN", dropdownMode: "match", checkboxMode: "required" });
   });
 });
 

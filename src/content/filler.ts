@@ -34,6 +34,8 @@ interface FillRun {
   skipped: Set<HTMLElement>;
   written: Array<HTMLInputElement | HTMLTextAreaElement>;
   filledFields: HTMLElement[];
+  /** Custom dropdowns left alone because that setting is off. */
+  skippedDropdowns: number;
   /** How many fields of each kind have been written, for making repeats unique. */
   kindCounts: Map<FieldKind, number>;
   changed: boolean;
@@ -135,7 +137,8 @@ function adoptPresetLocation(run: FillRun, fields: HTMLElement[]): void {
   const presets = fields.flatMap((element) => {
     const kind = classifyField(element);
     const locked = isSelect(element) || isCombobox(element) ? isInactive(element) : isDisabled(element);
-    return DROPDOWN_ORDER.includes(kind) && (locked || !run.settings.fillExisting) ? [{ element, kind }] : [];
+    const staying = locked || !run.settings.fillExisting || (isCombobox(element) && !run.settings.fillCustomDropdowns);
+    return DROPDOWN_ORDER.includes(kind) && staying ? [{ element, kind }] : [];
   });
   for (const kind of DROPDOWN_ORDER) {
     presets.filter((preset) => preset.kind === kind).forEach(({ element }) => adoptShownValue(run, element, kind));
@@ -156,6 +159,7 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
     for (const element of queue) {
       const kind = kinds.get(element) ?? "text";
       if (!element.isConnected || !isVisible(element)) { run.skipped.add(element); continue; }
+      if (!isSelect(element) && !run.settings.fillCustomDropdowns) { markSkipped(run, element); run.skippedDropdowns++; continue; }
       if (Date.now() > deadline) { markFailed(run, element, "Ran out of time"); continue; }
       if (isSelect(element) && !run.settings.fillExisting && hasSelection(element)) { markSkipped(run, element); continue; }
       if (!isSelect(element) && !run.settings.fillExisting && comboboxHasValue(element)) { markSkipped(run, element); continue; }
@@ -345,6 +349,7 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
     skipped: new Set(),
     written: [],
     filledFields: [],
+    skippedDropdowns: 0,
     kindCounts: new Map(),
     changed: false
   };
@@ -358,6 +363,7 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
   }
 
   reportClearedFields(run);
+  if (run.skippedDropdowns) run.result.details.push(`Skipped ${run.skippedDropdowns} custom dropdowns. Turn on Fill custom dropdowns to include them.`);
   run.result.skipped = run.skipped.size;
   if (settings.detailedReport) addDetailedReport(run);
   if (settings.highlightFilled) highlight(run.filledFields);

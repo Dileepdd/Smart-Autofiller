@@ -10,7 +10,7 @@ function fakeChrome(stored: object = {}, profiles?: object) {
   const listeners: Record<string, Listener> = {};
   const event = (name: string) => ({ addListener: (listener: Listener) => { listeners[name] = listener; } });
   const api = {
-    runtime: { onInstalled: event("installed"), onStartup: event("startup") },
+    runtime: { onInstalled: event("installed"), onStartup: event("startup"), onMessage: event("message") },
     storage: {
       onChanged: event("changed"),
       local: { get: vi.fn(async () => ({ smartAutofillSettings: stored, smartAutofillProfiles: profiles })), set: vi.fn(async () => undefined) }
@@ -50,10 +50,11 @@ describe("background worker", () => {
     const { api, listeners } = await start();
 
     await listeners.installed();
-    await vi.waitFor(() => expect(api.contextMenus.create).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(api.contextMenus.create).toHaveBeenCalledTimes(4));
 
     expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "fillOnOpen", type: "checkbox", checked: true, contexts: ["action"] }));
     expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "fillExisting", type: "checkbox", checked: true, contexts: ["action"] }));
+    expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "fillCustomDropdowns", type: "checkbox", checked: false }));
     expect(api.contextMenus.create).toHaveBeenCalledWith(expect.objectContaining({ id: "undo", contexts: ["action"] }));
   });
 
@@ -143,6 +144,32 @@ describe("background worker", () => {
     expect(api.tabs.sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ type: "SMART_AUTOFILL_FILL" }));
     expect(lastBadge(api)).toEqual([{ tabId: 7, text: "12" }]);
     expect(api.action.setTitle).toHaveBeenLastCalledWith({ tabId: 7, title: "Smart Autofill: 12 filled, 3 skipped, 0 need attention" });
+  });
+
+  it("runs a fill for the popup and keeps the result on the icon", async () => {
+    const { api, listeners } = await start();
+    const respond = vi.fn();
+
+    expect(listeners.message({ type: "SMART_AUTOFILL_FILL_TAB", tabId: 7 }, {}, respond)).toBe(true);
+
+    await vi.waitFor(() => expect(respond).toHaveBeenCalledWith({ result: RESULT }));
+    expect(lastBadge(api)).toEqual([{ tabId: 7, text: "12" }]);
+  });
+
+  it("tells the popup why a fill failed", async () => {
+    const { api, listeners } = await start();
+    api.scripting.executeScript.mockRejectedValue(new Error("Cannot access a chrome:// URL"));
+    const respond = vi.fn();
+
+    listeners.message({ type: "SMART_AUTOFILL_FILL_TAB", tabId: 7 }, {}, respond);
+
+    await vi.waitFor(() => expect(respond).toHaveBeenCalledWith({ error: "Chrome does not allow extensions on this page." }));
+  });
+
+  it("ignores messages meant for others", async () => {
+    const { listeners } = await start();
+
+    expect(listeners.message({ type: "OTHER" }, {}, vi.fn())).toBeUndefined();
   });
 
   it("marks the icon and lists the fields that need attention", async () => {

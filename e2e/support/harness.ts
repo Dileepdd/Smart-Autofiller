@@ -32,7 +32,11 @@ export class Popup {
   private nextId = 1;
   private readonly pending = new Map<number, (message: any) => void>();
 
-  private constructor(private readonly socket: WebSocket, private readonly isOpen: () => Promise<boolean>) {
+  private constructor(
+    private readonly socket: WebSocket,
+    private readonly isOpen: () => Promise<boolean>,
+    private readonly readIcon: () => Promise<{ badge: string; title: string }>
+  ) {
     socket.onmessage = ({ data }) => {
       const message = JSON.parse(String(data));
       this.pending.get(message.id)?.(message);
@@ -40,10 +44,10 @@ export class Popup {
     };
   }
 
-  static async connect(url: string, isOpen: () => Promise<boolean>): Promise<Popup> {
+  static async connect(url: string, isOpen: () => Promise<boolean>, readIcon: () => Promise<{ badge: string; title: string }>): Promise<Popup> {
     const socket = new WebSocket(url);
     await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
-    const popup = new Popup(socket, isOpen);
+    const popup = new Popup(socket, isOpen, readIcon);
     await popup.waitFor(`document.readyState === "complete" && document.getElementById("profile").textContent !== ""`);
     return popup;
   }
@@ -107,10 +111,18 @@ export class Popup {
     return this.evaluate(`document.getElementById(${JSON.stringify(id)}).textContent`);
   }
 
-  /** Clicks Fill Entire Page and reads the result the user sees. */
+  /**
+   * Clicks Fill Entire Page and reads the result the user sees. A widget on the page can take
+   * focus, which makes Chrome close the popup, and the user then reads the result from the icon.
+   */
   async fill(timeoutMs = 45_000): Promise<PopupResult> {
     await this.click("#fillButton");
-    await this.waitFor(`document.getElementById("status").textContent !== "Filling…" && !document.getElementById("fillButton").disabled`, timeoutMs);
+    try {
+      await this.waitFor(`document.getElementById("status").textContent !== "Filling…" && !document.getElementById("fillButton").disabled`, timeoutMs);
+    } catch (error) {
+      if (await this.isOpen()) throw error;
+      return this.resultFromIcon();
+    }
     return this.evaluate<PopupResult>(`(() => {
       const count = (id) => Number(document.getElementById(id).textContent);
       return {
@@ -122,6 +134,13 @@ export class Popup {
         details: [...document.querySelectorAll("#details li")].map((item) => item.textContent)
       };
     })()`);
+  }
+
+  private async resultFromIcon(): Promise<PopupResult> {
+    const { title } = await this.readIcon();
+    const [summary, ...details] = title.split("\n");
+    const [filled, skipped, errors] = (summary.match(/\d+/g) ?? []).map(Number);
+    return { status: summary, filled, skipped, errors, unsupported: 0, details };
   }
 
   /** Waits until Chrome has really closed it, because a click while it is closing would toggle or reuse it. */
@@ -153,7 +172,7 @@ export class Extension {
       const deadline = Date.now() + POPUP_TIMEOUT_MS / 2;
       while (Date.now() < deadline) {
         const popup = await this.popupTarget();
-        if (popup) return Popup.connect(popup.webSocketDebuggerUrl, async () => (await this.popupTarget()) !== undefined);
+        if (popup) return Popup.connect(popup.webSocketDebuggerUrl, () => this.isPopupOpen(), () => this.iconState());
         await sleep(POLL_MS);
       }
     }
@@ -193,7 +212,7 @@ export class Extension {
 
   /** Most tests set rules in the popup and check that values are kept, so they use the popup mode. */
   async clearSettings(): Promise<void> {
-    await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false, fillExisting: false } })", true);
+    await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false, fillExisting: false, fillCustomDropdowns: true } })", true);
   }
 
   /** Saves settings as an older version of the extension would have left them. */

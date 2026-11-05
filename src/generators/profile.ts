@@ -1,6 +1,6 @@
-import { faker } from "@faker-js/faker";
+import { faker, fakerEN_AU, fakerEN_CA, fakerEN_GB, fakerEN_IN, fakerEN_US } from "@faker-js/faker";
 import { PROFILE_TOKENS, renderTemplate } from "../shared/template";
-import { AutofillSettings } from "../shared/types";
+import { AutofillSettings, CountryCode } from "../shared/types";
 import { City, findCity, findLocale, findRegion, Locale, localeByCode, Region } from "./locales";
 
 /** Everything one fill writes, created up front so related fields agree with each other. */
@@ -38,6 +38,11 @@ export interface Profile {
   customerId: string;
   invoiceId: string;
 }
+
+const NAME_SOURCES: Record<CountryCode, typeof faker> = { IN: fakerEN_IN, US: fakerEN_US, GB: fakerEN_GB, CA: fakerEN_CA, AU: fakerEN_AU };
+
+const nameSource = (settings: AutofillSettings): typeof faker =>
+  NAME_SOURCES[settings.nameRegion === "country" ? settings.country : settings.nameRegion];
 
 /** Earliest age at which experience starts counting. */
 const WORKING_AGE = 18;
@@ -110,10 +115,12 @@ export const renderProfileTemplate = (template: string, profile: Profile): strin
 
 function generateProfile(settings: AutofillSettings): Profile {
   const sex = settings.gender === "any" ? faker.helpers.arrayElement(["male", "female"] as const) : settings.gender;
-  const firstName = settings.firstName || faker.person.firstName(sex);
-  const middleName = settings.includeMiddleName ? faker.person.middleName(sex) : "";
-  const lastName = settings.lastName || faker.person.lastName();
-  const company = settings.companyName || faker.company.name().replace(/[,.]/g, "");
+  const names = nameSource(settings);
+  const firstName = settings.firstName || names.person.firstName(sex);
+  const middleName = settings.includeMiddleName ? names.person.middleName(sex) : "";
+  // Faker sometimes joins two surnames with a hyphen, which reads as generated data.
+  const lastName = settings.lastName || names.person.lastName().split("-")[0];
+  const company = settings.companyName || names.company.name().replace(/[,.]/g, "");
   const emailDomain = settings.emailDomain.replace(/^@/, "").trim() || "example.com";
   const localPart = `${cleanDomainPart(firstName)}.${cleanDomainPart(lastName)}`;
   const domain = `${cleanDomainPart(company)}${normalizeSuffix(settings.domainSuffix)}`;
@@ -164,10 +171,13 @@ function generateProfile(settings: AutofillSettings): Profile {
 
 export function createProfile(settings: AutofillSettings): Profile {
   if (!settings.reuseProfile) return generateProfile(settings);
+  const names = nameSource(settings);
   faker.seed(settings.profileSeed);
+  names.seed(settings.profileSeed);
   const profile = generateProfile(settings);
   // Everything else in the fill stays random.
   faker.seed();
+  names.seed();
   return profile;
 }
 

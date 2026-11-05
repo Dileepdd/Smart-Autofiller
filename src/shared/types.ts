@@ -9,6 +9,7 @@ export type Gender = "any" | "male" | "female";
 export type UsernameMode = "name" | "random";
 export type TextMode = "realistic" | "random";
 export type AddressFormat = "standard" | "international";
+export type NameRegion = CountryCode | "country";
 export type CurrencySetting = "auto" | "INR" | "USD" | "GBP" | "CAD" | "AUD";
 
 /** Fills any field whose description contains `match`. `value` is a template, see template.ts. */
@@ -32,6 +33,8 @@ export interface AutofillSettings {
   firstName: string;
   lastName: string;
   includeMiddleName: boolean;
+  /** Where names, and so email addresses, come from. "country" follows the Country setting. */
+  nameRegion: NameRegion;
   gender: Gender;
   usernameMode: UsernameMode;
   passwordPattern: string;
@@ -67,6 +70,8 @@ export interface AutofillSettings {
   fillExisting: boolean;
   /** Fill straight from the toolbar icon with no popup. Off, the icon opens the popup instead. */
   fillOnOpen: boolean;
+  /** Dropdowns built from page elements have to be opened and waited for, so they are opt-in. */
+  fillCustomDropdowns: boolean;
   fillScope: FillScope;
   detectDynamic: boolean;
   includeFrames: boolean;
@@ -94,6 +99,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   firstName: "",
   lastName: "",
   includeMiddleName: true,
+  nameRegion: "IN",
   gender: "any",
   usernameMode: "name",
   passwordPattern: "",
@@ -125,6 +131,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   checkboxMode: "required",
   fillExisting: true,
   fillOnOpen: true,
+  fillCustomDropdowns: false,
   fillScope: "all",
   detectDynamic: true,
   includeFrames: true,
