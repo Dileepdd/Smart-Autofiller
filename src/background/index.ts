@@ -124,8 +124,8 @@ async function showOnIcon(tabId: number, badge: string, title: string, isWarning
   await Promise.all([
     chrome.action.setBadgeBackgroundColor({ tabId, color: isWarning ? BADGE_WARNING : BADGE_OK }),
     chrome.action.setBadgeTextColor({ tabId, color: isWarning ? BADGE_TEXT_WARNING : BADGE_TEXT_OK }),
-    // With no text, the tab goes back to the badge set for all tabs. The types wrongly require it.
-    chrome.action.setBadgeText((badge ? { tabId, text: badge } : { tabId }) as chrome.action.BadgeTextDetails),
+    // Null sends the tab back to the badge set for all tabs. The types wrongly require a string.
+    chrome.action.setBadgeText({ tabId, text: badge || null } as unknown as chrome.action.BadgeTextDetails),
     chrome.action.setTitle({ tabId, title })
   ]);
 }

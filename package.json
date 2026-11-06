@@ -8,6 +8,7 @@
     "build": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
     "package": "node scripts/build.mjs --release && node scripts/package.mjs",
+    "package:firefox": "node scripts/build.mjs --release --firefox && node scripts/package.mjs --firefox",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "e2e:setup": "node scripts/e2e-setup.mjs",

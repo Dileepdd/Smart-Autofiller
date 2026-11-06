@@ -33,6 +33,7 @@ After changing source code, run `npm run build`, then click Reload on the extens
 | `npm run build` | Builds the extension into `dist/` |
 | `npm run watch` | Rebuilds when source files change |
 | `npm run package` | Builds without source maps and writes the store zip to `release/` |
+| `npm run package:firefox` | Builds into `dist-firefox/` and writes the Firefox zip to `release/` |
 | `npm run typecheck` | Type-checks `src/` and `tests/` |
 | `npm test` | Runs unit tests in happy-dom |
 | `npm run test:e2e` | Builds, then runs the real-browser tests |
@@ -178,13 +179,24 @@ Custom rules take one `keyword = value` per line, for example `employee id = EMP
 
 Filling fires the page's own `change` handlers, as typing would. A page that acts on those handlers will still act, so use this on test environments. **Replace existing values** is on by default, so a click overwrites what is in a form, including saved passwords. A site control built from plain `div`s with no recognisable header or navigation markup cannot be told apart from a form field.
 
+## Building for Firefox
+
+Requires Node.js 22.12 or later and npm. These commands reproduce the Firefox package exactly:
+
+```bash
+npm ci
+npm run package:firefox
+```
+
+The result is in `dist-firefox/`, and as a zip at `release/smart-autofill-firefox-<version>.zip`. esbuild bundles `src/` and `@faker-js/faker` into `background.js`, `content.js` and `popup.js`, without minifying. The other files are copied from `public/` and `src/popup/`. The only difference from the Chrome build is the manifest: Firefox gets a background script instead of a service worker, plus its add-on ID and data declaration, in `scripts/build.mjs`.
+
 ## Publishing
 
 `npm run package` writes the store zip to `release/`. It leaves `dist/` without source maps until the next `npm run build`. `CHROMEWEBSTORE.md` holds the listing text, permission reasons, privacy answers and a pre-submission checklist, `PRIVACY.md` is the privacy policy, and `store/` holds the images.
 
 ## Tested compatibility
 
-Checked by `npm run test:e2e` in Playwright's Chromium with the built extension.
+Checked by `npm run test:e2e` in Playwright's Chromium with the built extension. The same tests pass in Microsoft Edge with `E2E_CHANNEL=msedge`. Firefox 159 passed a separate check of filling, data modes, Clear form, Undo, one field, and React, Vue and Angular forms; it used a test copy with host access, so real icon clicks, menus and shortcuts in Firefox are manual checks.
 
 | Tested | Result |
 |---|---|

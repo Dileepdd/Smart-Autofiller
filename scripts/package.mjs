@@ -2,7 +2,8 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
 
-const source = "dist";
+const firefox = process.argv.includes("--firefox");
+const source = firefox ? "dist-firefox" : "dist";
 const outdir = "release";
 
 const ZIP_VERSION = 20;
@@ -54,7 +55,7 @@ function zip(entries) {
 
 const { version } = JSON.parse(await readFile(join(source, "manifest.json"), "utf8"));
 const entries = await zipEntries();
-const output = join(outdir, `smart-autofill-${version}.zip`);
+const output = join(outdir, `smart-autofill-${firefox ? "firefox-" : ""}${version}.zip`);
 await mkdir(outdir, { recursive: true });
 await writeFile(output, zip(entries));
 console.log(`${output}: ${entries.length} files`);

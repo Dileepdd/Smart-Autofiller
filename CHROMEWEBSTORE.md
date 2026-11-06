@@ -203,6 +203,31 @@ The extension never submits a form. It makes no network requests and uses no rem
 This is a testing tool for developers and QA engineers. All values are generated on the device or come from a built-in list. An optional setting, off by default and labelled for authorised testing only, adds common security test strings to the field menu. Identifier values such as Aadhaar and PAN follow a public format so that form validation can be tested. They are not real documents, are not linked to real people, and the listing tells users not to use them as real identity details.
 ```
 
+## Other stores
+
+The description, privacy answers, permission reasons, reviewer steps and images above work for every store. In the description's last line, replace "Chrome doesn't allow extensions on its own pages" with "browsers don't allow extensions on their own pages".
+
+Brave and Vivaldi install from the Chrome Web Store, so they need no separate listing.
+
+**Microsoft Edge Add-ons**
+
+- Upload `release/smart-autofill-<version>.zip`, the same package as Chrome.
+- Category: Developer tools. Logo: `public/icons/icon-128.png`.
+- Search terms: `form filler`, `test data`, `QA testing`, `autofill`, `fake data`, `form testing`.
+- Paste the reviewer steps into **Notes for certification**.
+
+**Firefox Add-ons**
+
+- Run `npm run package:firefox` and upload `release/smart-autofill-firefox-<version>.zip`.
+- Upload the source package when asked, because the code is bundled: `release/smart-autofill-source-<version>.zip`. Create it from a clean commit with `git archive --format=zip -o release/smart-autofill-source-<version>.zip HEAD`.
+- Reviewer notes: `Build with Node.js 22.12 or later: npm ci, then npm run package:firefox. The output is in dist-firefox/. No account is needed to test.` Add the reviewer steps above.
+- The add-on ID in `scripts/build.mjs` must never change after the first release.
+
+**Opera Add-ons**
+
+- Upload `release/smart-autofill-<version>.zip`, the same package as Chrome.
+- Opera Mini does not run extensions, so it cannot be supported.
+
 ## Distribution
 
 Start with **Unlisted** if you want a real install to test before going public, then switch to **Public** once it has passed review.

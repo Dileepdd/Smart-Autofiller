@@ -298,7 +298,7 @@ describe("background worker", () => {
     await listeners.click({ id: 7 });
 
     expect(api.tabs.sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ type: "SMART_AUTOFILL_FILL" }));
-    expect(lastBadge(api)).toEqual([{ tabId: 7 }]);
+    expect(lastBadge(api)).toEqual([{ tabId: 7, text: null }]);
     expect(api.action.setTitle).toHaveBeenLastCalledWith({ tabId: 7, title: "Smart Autofill: 12 filled, 3 skipped, 0 need attention" });
   });
 

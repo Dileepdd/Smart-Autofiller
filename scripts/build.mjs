@@ -1,9 +1,23 @@
 import { build, context } from "esbuild";
-import { cp, mkdir, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 const watch = process.argv.includes("--watch");
 const release = process.argv.includes("--release");
-const outdir = "dist";
+const firefox = process.argv.includes("--firefox");
+const outdir = firefox ? "dist-firefox" : "dist";
+// Firefox identifies an add-on by this for good, so it must not change after the first release.
+const FIREFOX_ID = "smart-autofill-qa@dileepdd.github.io";
+
+/** Firefox runs a background script instead of a service worker, and needs its own ID and data declaration. */
+async function writeFirefoxManifest() {
+  const path = `${outdir}/manifest.json`;
+  const { minimum_chrome_version: _chromeOnly, ...manifest } = JSON.parse(await readFile(path, "utf8"));
+  manifest.background = { scripts: ["background.js"] };
+  manifest.browser_specific_settings = {
+    gecko: { id: FIREFOX_ID, strict_min_version: "142.0", data_collection_permissions: { required: ["none"] } }
+  };
+  await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
+}
 
 await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
@@ -26,6 +40,7 @@ await cp("src/popup/popup.html", `${outdir}/popup.html`);
 await cp("src/popup/popup.html", `${outdir}/options.html`);
 await cp("src/popup/popup.css", `${outdir}/popup.css`);
 await cp("node_modules/@faker-js/faker/LICENSE", `${outdir}/LICENSE-faker.txt`);
+if (firefox) await writeFirefoxManifest();
 
 if (watch) {
   const contexts = await Promise.all(jobs.map((job) => context(job)));

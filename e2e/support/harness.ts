@@ -306,7 +306,8 @@ async function launchExtension(): Promise<{ extension: Extension; profile: strin
   const profile = await mkdtemp(join(tmpdir(), "smart-autofill-e2e-"));
   const port = await freePort();
   const context = await chromium.launchPersistentContext(profile, {
-    channel: "chromium",
+    // E2E_CHANNEL=msedge runs the same tests in Microsoft Edge.
+    channel: process.env.E2E_CHANNEL ?? "chromium",
     // Popups need a real toolbar. Use xvfb-run on a machine without a display.
     headless: false,
     ignoreDefaultArgs: ["--disable-extensions"],
