@@ -43,33 +43,38 @@
       <h1>Settings</h1>
       <span id="saveState" class="save-state" role="status"></span>
     </header>
+    <div class="options-main">
+    <section id="dashboard" class="dashboard" hidden aria-live="polite"></section>
     <form id="settingsForm" class="settings">
       <p id="settingsError" class="error" role="alert" hidden></p>
 
       <details open>
         <summary>Identity</summary>
-        <div class="row"><label for="emailDomain">Email domain</label><input id="emailDomain" data-setting type="text" placeholder="sample.com" /></div>
-        <div class="row"><label for="domainSuffix">Domain suffix</label>
-          <select id="domainSuffix" data-setting>
-            <option value=".com">.com</option><option value=".net">.net</option><option value=".org">.org</option>
-            <option value=".io">.io</option><option value=".co">.co</option>
-          </select>
-        </div>
+        <h3 class="group">Email</h3>
+        <div class="row"><div class="field-name"><label for="emailDomain">Email domain</label><small class="field-help">Used for every generated address.</small></div><input id="emailDomain" data-setting type="text" placeholder="sample.com" /></div>
+
+        <h3 class="group">Age and experience</h3>
         <div class="row"><span id="ageLabel">Age</span>
           <div class="range" role="group" aria-labelledby="ageLabel">
             <input id="ageMin" data-setting type="number" min="0" max="120" aria-label="Minimum age" /><span>to</span>
-            <input id="ageMax" data-setting type="number" min="0" max="120" aria-label="Maximum age" />
+            <input id="ageMax" data-setting type="number" min="0" max="120" aria-label="Maximum age" /><span class="unit">years</span>
           </div>
         </div>
         <div class="row"><span id="experienceLabel">Experience</span>
           <div class="range" role="group" aria-labelledby="experienceLabel">
             <input id="experienceMin" data-setting type="number" min="0" max="80" aria-label="Minimum experience" /><span>to</span>
-            <input id="experienceMax" data-setting type="number" min="0" max="80" aria-label="Maximum experience" />
+            <input id="experienceMax" data-setting type="number" min="0" max="80" aria-label="Maximum experience" /><span class="unit">years</span>
           </div>
         </div>
-        <div class="row"><label for="firstName">First name</label><input id="firstName" data-setting type="text" placeholder="Random" /></div>
-        <div class="row"><label for="lastName">Last name</label><input id="lastName" data-setting type="text" placeholder="Random" /></div>
-        <div class="row"><label for="nameRegion">Names and email</label>
+
+        <h3 class="group">Name and gender</h3>
+        <div class="row"><div class="field-name"><span id="fixedNameLabel">Fixed name</span><small class="field-help">Leave blank for a random name.</small></div>
+          <div class="pair" role="group" aria-labelledby="fixedNameLabel">
+            <input id="firstName" data-setting type="text" placeholder="First name" aria-label="First name" />
+            <input id="lastName" data-setting type="text" placeholder="Last name" aria-label="Last name" />
+          </div>
+        </div>
+        <div class="row"><div class="field-name"><label for="nameRegion">Name style</label><small class="field-help">Applies to names and emails.</small></div>
           <select id="nameRegion" data-setting>
             <option value="IN">Indian</option><option value="US">American</option><option value="GB">British</option>
             <option value="CA">Canadian</option><option value="AU">Australian</option>
@@ -79,16 +84,26 @@
           </select>
         </div>
         <div class="row"><label for="gender">Gender</label>
-          <select id="gender" data-setting><option value="any">Any</option><option value="male">Male</option><option value="female">Female</option></select>
+          <select id="gender" data-setting><option value="any">Any</option><option value="female">Female</option><option value="male">Male</option></select>
         </div>
+        <label class="check"><input id="includeMiddleName" data-setting type="checkbox" /> Fill middle name fields</label>
+
+        <h3 class="group">Account</h3>
         <div class="row"><label for="usernameMode">Username</label>
           <select id="usernameMode" data-setting><option value="name">Based on name</option><option value="random">Random</option></select>
         </div>
-        <div class="row"><label for="passwordPattern">Password</label><input id="passwordPattern" data-setting type="text" placeholder="Random" /></div>
+        <div class="row"><div class="field-name"><label for="passwordPattern">Password</label><small class="field-help">Leave blank for a strong random one.</small></div><input id="passwordPattern" data-setting type="text" placeholder="Random" /></div>
+
+        <h3 class="group">Work</h3>
         <div class="row"><label for="companyName">Company</label><input id="companyName" data-setting type="text" placeholder="Random" /></div>
         <div class="row"><label for="department">Department</label><input id="department" data-setting type="text" placeholder="Random" /></div>
         <div class="row"><label for="jobTitle">Job title</label><input id="jobTitle" data-setting type="text" placeholder="Random" /></div>
-        <label class="check"><input id="includeMiddleName" data-setting type="checkbox" /> Fill middle name fields</label>
+        <div class="row"><div class="field-name"><label for="domainSuffix">Website ending</label><small class="field-help">For company websites, such as acme.com.</small></div>
+          <select id="domainSuffix" data-setting>
+            <option value=".com">.com</option><option value=".net">.net</option><option value=".org">.org</option>
+            <option value=".io">.io</option><option value=".co">.co</option>
+          </select>
+        </div>
       </details>
 
       <details>
@@ -264,6 +279,7 @@
         <p class="hint">Default shortcuts: Alt+Shift+F fills the form, Alt+Shift+D the focused field, Alt+Shift+C clears, Alt+Shift+M switches test data. Change them, or add one for Undo, in your browser's extension shortcuts page.</p>
       </details>
     </form>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>

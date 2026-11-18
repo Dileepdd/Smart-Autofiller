@@ -8,7 +8,7 @@ import { isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePi
 import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isInput, isSelect, isVisible } from "./detector";
 import { hasSelection, pickChoice, pickMany, toChoice, usableOptions } from "./dropdown";
 import { remember, startSnapshot } from "./undo";
-import { rememberFill, reportIssues } from "./report";
+import { countTypes, rememberFill, reportIssues } from "./report";
 import { validationReport } from "./validation";
 import { delay, waitFor } from "./waiting";
 import { blockSubmissions, highlight, toggle, writeEditable, writeMultiSelect, writeSelect, writeValue } from "./writers";
@@ -371,6 +371,7 @@ function addDetailedReport(run: FillRun): void {
 }
 
 export async function fillPage(settings: AutofillSettings): Promise<FillResult> {
+  const started = Date.now();
   const run: FillRun = {
     settings,
     profile: createProfile(settings),
@@ -401,6 +402,7 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
   if (run.skippedDropdowns) run.result.details.push(`Skipped ${run.skippedDropdowns} custom dropdowns. Turn on Fill custom dropdowns to include them.`);
   run.result.skipped = run.skipped.size;
   rememberFill(run.filledFields, settings.dataMode, reportIssues(run.result.details));
+  run.result.stats = { byType: countTypes(run.filledFields), ms: Date.now() - started };
   if (settings.detailedReport) addDetailedReport(run);
   if (settings.highlightFilled) highlight(run.filledFields);
   return run.result;

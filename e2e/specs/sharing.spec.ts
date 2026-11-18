@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { expect, fillThroughPopup, test } from "../support/harness";
 
+// The browser is shared between tests, and an options tab left open would stop a later test opening its own.
+test.afterEach(async ({ extension }) => {
+  for (const page of extension.context.pages()) if (page.url().endsWith("/options.html")) await page.close();
+});
+
 test.describe("copy for bug reports", () => {
   test("the page hands back the last fill as Markdown, without the password", async ({ extension, open }) => {
     const page = await open("simple");
@@ -42,14 +47,14 @@ test.describe("import and export", () => {
     const options = await extension.openOptions();
 
     const download = options.waitForEvent("download");
-    await options.click("summary:has-text('Share and back up')");
+    await options.click(".side-nav >> text=Share and back up");
     await options.click("#exportButton");
     const file = JSON.parse(readFileSync(await (await download).path(), "utf8"));
     expect(file).toMatchObject({ app: "smart-autofill", version: 1, settings: { emailDomain: "team.example.test", country: "DE" } });
 
     await extension.useSettings({ emailDomain: "other.test", country: "IN" });
     await options.reload();
-    await options.click("summary:has-text('Share and back up')");
+    await options.click(".side-nav >> text=Share and back up");
     await options.setInputFiles("#importFile", { name: "settings.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(file)) });
 
     await expect(options.locator("#shareState")).toHaveText(/Imported settings and 0 test profiles/);
@@ -60,7 +65,7 @@ test.describe("import and export", () => {
   test("a file that is not ours is refused and changes nothing", async ({ extension }) => {
     await extension.useSettings({ emailDomain: "kept.test" });
     const options = await extension.openOptions();
-    await options.click("summary:has-text('Share and back up')");
+    await options.click(".side-nav >> text=Share and back up");
 
     await options.setInputFiles("#importFile", { name: "x.json", mimeType: "application/json", buffer: Buffer.from("{\"hello\": 1}") });
 

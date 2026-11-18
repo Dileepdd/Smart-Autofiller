@@ -34,6 +34,8 @@ const jobs = [
   { entryPoints: ["src/popup/popup.ts"], outfile: `${outdir}/popup.js`, format: "iife", ...common },
   { entryPoints: ["src/background/index.ts"], outfile: `${outdir}/background.js`, format: "iife", ...common },
   { entryPoints: ["src/content/index.ts"], outfile: `${outdir}/content.js`, format: "iife", ...common },
+  // The options page's preview card, kept out of the popup so the popup stays light.
+  { entryPoints: ["src/popup/preview.ts"], outfile: `${outdir}/preview.js`, format: "iife", ...common },
   ...(await localeJobs())
 ];
 

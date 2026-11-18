@@ -5,7 +5,8 @@ import { expect, Extension, fillThroughPopup, pageState, test } from "../support
 async function withOptions(extension: Extension, edit: (options: Page) => Promise<void>): Promise<void> {
   const options = await extension.openOptions();
   await options.waitForFunction("document.getElementById('emailDomain').value !== ''");
-  await options.evaluate("document.querySelectorAll('details').forEach((section) => { section.open = true; })");
+  // Shows every section at once, which the sidebar would otherwise show one at a time.
+  await options.evaluate("document.getElementById('settingsForm').hidden = false; document.querySelectorAll('details').forEach((section) => { section.open = true; section.hidden = false; })");
   await edit(options);
   await options.close();
 }

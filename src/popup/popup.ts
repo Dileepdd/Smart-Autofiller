@@ -2,6 +2,8 @@ import { clearMessage, clearTab, FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome
 import { activeProfile, getEffectiveSettings, getProfileStore, sanitizeProfiles, saveProfileStore } from "../shared/profiles";
 import { exportFile, getSettings, readExportFile, saveSettings } from "../shared/settings";
 import { DATA_MODES, FillResult } from "../shared/types";
+import { recordAction } from "../shared/stats";
+import { initOptionsLayout, refreshOptionsLayout } from "./optionsLayout";
 import { initProfiles } from "./profilesForm";
 import { fillForm, readForm } from "./settingsForm";
 
@@ -114,6 +116,7 @@ async function copyLastFill(): Promise<void> {
   if (!count) return status("Nothing to copy yet. Fill the form first.", true);
   try {
     await navigator.clipboard.writeText(text);
+    void recordAction("copies").catch(() => undefined);
     status(`Copied ${count} fields for a bug report.`);
   } catch {
     status("Could not copy to the clipboard.", true);
@@ -151,7 +154,9 @@ async function importSettings(): Promise<void> {
 
 async function undoActiveTab(): Promise<void> {
   showResult();
-  status(undoMessage(await undoFill(await activeTabId())));
+  const result = await undoFill(await activeTabId());
+  if (result.restored) void recordAction("undos").catch(() => undefined);
+  status(undoMessage(result));
 }
 
 async function clearActiveTab(): Promise<void> {
@@ -159,6 +164,7 @@ async function clearActiveTab(): Promise<void> {
   try {
     const result = await clearTab(await activeTabId(), await getEffectiveSettings());
     status(clearMessage(result));
+    if (result.cleared) void recordAction("clears").catch(() => undefined);
     byId("undoButton").hidden = !result.cleared;
   } catch (error) {
     status(fillErrorMessage(error), true);
@@ -182,10 +188,12 @@ byId("importFile").addEventListener("change", () => void importSettings());
 if (isOptionsPage) {
   document.body.classList.add("is-options");
   showView("settings");
+  initOptionsLayout();
 }
 
 async function load(): Promise<void> {
   fillForm(await getSettings());
+  refreshOptionsLayout();
   try {
     const note = sessionStorage.getItem(IMPORT_NOTE);
     if (note) {

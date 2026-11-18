@@ -2,6 +2,7 @@ import { clearMessage, clearTab, copyFill, FILL_TAB_MESSAGE, fillErrorMessage, f
 import { getEffectiveSettings, getProfileStore, saveProfileStore, selectProfile } from "../shared/profiles";
 import { getSettings, saveSettings } from "../shared/settings";
 import { DATA_MODES, DataMode, FillResult, ReportFormat } from "../shared/types";
+import { recordAction, recordFill } from "../shared/stats";
 import { libraryFor } from "../shared/valueLibrary";
 
 const NAME = "Smart Autofill";
@@ -142,8 +143,13 @@ function showResult(tabId: number, result: FillResult, mode: DataMode): Promise<
   return showOnIcon(tabId, "", title);
 }
 
+/** Statistics must never get in the way of the action itself, so a failed write is ignored. */
+const quietly = (write: Promise<void>): void => { void write.catch(() => undefined); };
+
 async function undo(tabId: number): Promise<void> {
-  const message = undoMessage(await undoFill(tabId));
+  const result = await undoFill(tabId);
+  if (result.restored) quietly(recordAction("undos"));
+  const message = undoMessage(result);
   await showOnIcon(tabId, "", `${NAME}: ${message}`);
 }
 
@@ -157,10 +163,19 @@ async function reportOnIcon(tabId: number, command: () => Promise<string>): Prom
 }
 
 const clear = (tabId: number): Promise<void> =>
-  reportOnIcon(tabId, async () => clearMessage(await clearTab(tabId, await getEffectiveSettings())));
+  reportOnIcon(tabId, async () => {
+    const result = await clearTab(tabId, await getEffectiveSettings());
+    if (result.cleared) quietly(recordAction("clears"));
+    return clearMessage(result);
+  });
 
 const fillOneField = (tabId: number, frameId: number | undefined, value?: string): Promise<void> =>
-  reportOnIcon(tabId, async () => (await fillField(tabId, frameId, await getEffectiveSettings(), value)).message);
+  reportOnIcon(tabId, async () => {
+    const settings = await getEffectiveSettings();
+    const result = await fillField(tabId, frameId, settings, value);
+    if (result.filled) quietly(recordFill({ byType: { text: 1 }, ms: 0 }, settings.dataMode, 0, false));
+    return result.message;
+  });
 
 function libraryValue(menuItemId: string, showSecurityValues: boolean): string | undefined {
   const [category, index] = menuItemId.slice(VALUE_PREFIX.length).split(":");
@@ -178,7 +193,7 @@ async function handleMenu(menuItemId: string | number, checked: boolean | undefi
   } else if (menuItemId === FIELD_MENU) {
     if (tabId !== undefined) await fillOneField(tabId, frameId);
   } else if (id.startsWith(COPY_PREFIX)) {
-    if (tabId !== undefined) await copyFill(tabId, id.slice(COPY_PREFIX.length) as ReportFormat);
+    if (tabId !== undefined && await copyFill(tabId, id.slice(COPY_PREFIX.length) as ReportFormat)) quietly(recordAction("copies"));
   } else if (id.startsWith(VALUE_PREFIX)) {
     const value = libraryValue(id, (await getSettings()).showSecurityValues);
     if (tabId !== undefined && value !== undefined) await fillOneField(tabId, frameId, value);
@@ -235,6 +250,7 @@ async function fillAndReport(tabId: number): Promise<FillOutcome> {
   try {
     const settings = await getEffectiveSettings();
     const result = await fillTab(tabId, settings);
+    if (result.stats) quietly(recordFill(result.stats, settings.dataMode, result.errors + result.unsupported));
     await showResult(tabId, result, settings.dataMode);
     return { result };
   } catch (error) {

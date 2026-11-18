@@ -1,4 +1,4 @@
-import { DATA_MODES, DataMode, ReportFormat } from "../shared/types";
+import { DATA_MODES, DataMode, FieldType, ReportFormat } from "../shared/types";
 import { fieldLabel } from "./context";
 import { comboboxValue } from "./customDropdown";
 import { isChoice, isCombobox, isEditable, isSelect } from "./detector";
@@ -45,6 +45,25 @@ export function rememberFill(elements: HTMLElement[], dataMode: DataMode, issues
 }
 
 export const lastFill = (): FillReport | undefined => lastReport;
+
+/** Read from the element alone, which costs nothing, rather than classifying every field again. */
+export function fieldType(element: HTMLElement): FieldType {
+  if (isSelect(element) || isCombobox(element)) return "dropdown";
+  if (isChoice(element)) return "choice";
+  if (element.tagName === "TEXTAREA" || isEditable(element)) return "longText";
+  const type = (element.getAttribute("type") ?? "text").toLowerCase();
+  if (type === "email") return "email";
+  if (type === "tel") return "phone";
+  if (type === "number") return "number";
+  if (["date", "datetime-local", "time", "month", "week"].includes(type)) return "date";
+  return "text";
+}
+
+export function countTypes(elements: HTMLElement[]): Partial<Record<FieldType, number>> {
+  const counts: Partial<Record<FieldType, number>> = {};
+  for (const element of elements) counts[fieldType(element)] = (counts[fieldType(element)] ?? 0) + 1;
+  return counts;
+}
 
 const readableTime = (iso: string): string => new Date(iso).toLocaleString();
 

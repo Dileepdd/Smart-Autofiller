@@ -197,7 +197,17 @@ export interface ProfileStore {
   activeProfileId: string | null;
 }
 
+/** Kinds of field, grouped by how long a person takes to fill them by hand. */
+export type FieldType = "text" | "longText" | "email" | "phone" | "number" | "date" | "dropdown" | "choice";
+
+/** What a fill did, for the usage statistics. Only counts: no values and no page addresses. */
+export interface FillStats {
+  byType: Partial<Record<FieldType, number>>;
+  ms: number;
+}
+
 export interface FillResult {
+  stats?: FillStats;
   filled: number;
   skipped: number;
   errors: number;

@@ -166,7 +166,7 @@ test.describe("the real extension", () => {
     const page = await open("simple");
     await extension.useShippedDefaults();
     const options = await extension.openOptions();
-    await options.locator("summary", { hasText: "Filling behavior" }).click();
+    await options.click(".side-nav >> text=Filling behavior");
     await options.uncheck("#fillOnOpen");
     await extension.waitForPopupMode(options, true);
     await options.close();
@@ -211,6 +211,7 @@ test.describe("the real extension", () => {
   test("a setting changed on the options page reaches the popup", async ({ extension, open }) => {
     const page = await open("simple");
     const options = await extension.openOptions();
+    await options.click(".side-nav >> text=Identity");
     await options.fill("#emailDomain", "options.test");
     await options.locator("#emailDomain").blur();
     await options.locator("#saveState", { hasText: "Saved" }).waitFor();
