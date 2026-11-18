@@ -36,17 +36,19 @@ Run `npm run package`, then upload `release/smart-autofill-<version>.zip`. Incre
 
 ## Store listing
 
-**Title** (from the manifest)
+**Title** (from the manifest; changing it needs a new package, so it ships with the next version)
 
 ```
-Smart Autofill – QA Test Data
+Smart Autofill – Form Filler & Test Data for QA
 ```
 
 **Summary** (from the manifest, 132 characters at most)
 
 ```
-Fill web forms with realistic, connected test data in one click. Runs locally; no API key required.
+Form filler for QA and developers: fill any form with realistic fake test data in one click. Invalid and edge cases too. No sign-up.
 ```
+
+These put the words people search for, "form filler", "fake data" and "test data", in the title and summary, which the store weighs most.
 
 **Category:** Developer Tools
 
@@ -55,9 +57,12 @@ Fill web forms with realistic, connected test data in one click. Runs locally; n
 **Description**
 
 ```
-Testing a form usually means typing the same details again and again. Smart Autofill fills the whole page in one click, so you can get straight to testing.
+Testing a form usually means typing the same details again and again. Smart Autofill is a form filler and test data generator that fills the whole page in one click, so you can get straight to testing.
 
-Built for developers and QA engineers. Use it on forms you own or have permission to test.
+Built for developers, testers and QA engineers. Use it on forms you own or have permission to test.
+
+ONE CLICK, WHOLE FORM
+Click the toolbar icon and every field is filled: text, email, phone, dates, dropdowns, radio buttons and checkboxes. A short note on the page says how many fields were filled, and hovering over the icon lists any that were not.
 
 REALISTIC, CONNECTED DATA
 Every fill creates one consistent test person. The email matches the name, and the city, state, postal code and phone number all belong to the same country.
@@ -86,7 +91,9 @@ Generates correctly formatted sample values for Aadhaar, PAN, GSTIN, IFSC, UPI I
 WORKS WITH MODERN FORMS
 • Plain HTML, React, Vue and Angular forms
 • Dropdowns that depend on each other, such as Country, State and City
-• Common component libraries and date pickers
+• Searchable custom dropdowns, including Radix, cmdk, Mantine, Ant Design, Headless UI, react-select and Element UI
+• Phone number fields with a country code picker
+• Common date pickers
 • Same-origin iframes and shadow DOM
 
 YOU STAY IN CONTROL
