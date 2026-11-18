@@ -9,9 +9,14 @@ const outdir = firefox ? "dist-firefox" : "dist";
 const FIREFOX_ID = "smart-autofill-qa@dileepdd.github.io";
 
 /** Firefox runs a background script instead of a service worker, and needs its own ID and data declaration. */
+const FIREFOX_NAME = "Smart Autofill – Form Filler & QA Test Data";
+
 async function writeFirefoxManifest() {
   const path = `${outdir}/manifest.json`;
   const { minimum_chrome_version: _chromeOnly, ...manifest } = JSON.parse(await readFile(path, "utf8"));
+  // Firefox allows at most 45 characters in a name, while Chrome allows 75.
+  manifest.name = FIREFOX_NAME;
+  if (manifest.name.length > 45) throw new Error(`The Firefox name is ${manifest.name.length} characters; Firefox allows 45.`);
   manifest.background = { scripts: ["background.js"] };
   manifest.browser_specific_settings = {
     gecko: { id: FIREFOX_ID, strict_min_version: "142.0", data_collection_permissions: { required: ["none"] } }

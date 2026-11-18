@@ -27,8 +27,11 @@ const ICONS: Readonly<Record<string, string>> = {
   "Advanced": '<path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M3.75 3.75l1.6 1.6M10.65 10.65l1.6 1.6M3.75 12.25l1.6-1.6M10.65 5.35l1.6-1.6"/>'
 };
 
-const icon = (name: string): string =>
-  `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${ICONS[name] ?? ""}</svg>`;
+/** Parsed as SVG rather than set as HTML, so no markup string is ever written into the page. */
+function icon(name: string): Node {
+  const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${ICONS[name] ?? ""}</svg>`;
+  return document.importNode(new DOMParser().parseFromString(markup, "image/svg+xml").documentElement, true);
+}
 
 /** Button groups that stand in for short selects. The select stays, hidden, so saving works as before. */
 const SEGMENTED = ["gender"];
@@ -115,8 +118,7 @@ export function initOptionsLayout(): void {
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.target = id;
-    button.innerHTML = icon(title);
-    button.append(title);
+    button.append(icon(title), title);
     button.addEventListener("click", () => show(id));
     nav.append(button);
   }
