@@ -68,8 +68,8 @@ REALISTIC, CONNECTED DATA
 Every fill creates one consistent test person. The email matches the name, and the city, state, postal code and phone number all belong to the same country.
 
 • Names, emails, phone numbers, addresses, companies, job titles and dates
-• Data for India, the United States, the United Kingdom, Canada, Australia, Germany, France, Spain, Portugal, Italy and the Netherlands
-• Reads field labels in English, German, French, Spanish, Portuguese, Italian, Dutch and Hindi
+• Data for 11 countries, including India, the United States and the United Kingdom
+• Reads field labels in 8 languages, including English, Hindi and major European languages
 • Follows the page's language automatically, or uses the one you choose
 • Every US state, with matching cities and ZIP codes
 • Tax ID and postal code formats for each country
@@ -94,7 +94,7 @@ Generates correctly formatted sample values for Aadhaar, PAN, GSTIN, IFSC, UPI I
 WORKS WITH MODERN FORMS
 • Plain HTML, React, Vue and Angular forms
 • Dropdowns that depend on each other, such as Country, State and City
-• Searchable custom dropdowns, including Radix, cmdk, Mantine, Ant Design, Headless UI, react-select and Element UI
+• Custom dropdowns, including ones with a search box
 • Phone number fields with a country code picker
 • Common date pickers
 • Same-origin iframes and shadow DOM
