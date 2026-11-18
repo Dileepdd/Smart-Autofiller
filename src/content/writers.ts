@@ -18,13 +18,14 @@ function withFocusEvents(element: HTMLElement, write: () => void): void {
 /**
  * Uses the prototype's value setter so frameworks that wrap the element's own `value`
  * property, such as React, still see the following input event as a real change.
+ * The event says paste, as the whole value arrives at once: phone inputs drop a "typed" value that is not a digit.
  * Returns false when the field rejected the value.
  */
 export function writeValue(element: HTMLInputElement | HTMLTextAreaElement, value: string): boolean {
   const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")?.set;
   withFocusEvents(element, () => {
     setter?.call(element, value);
-    element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+    element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste" }));
     fire(element, "change");
   });
   return element.value !== "";
@@ -77,6 +78,14 @@ export function highlight(elements: HTMLElement[]): void {
   const previous = elements.map((element) => element.style.outline);
   elements.forEach((element) => { element.style.outline = "2px solid #1e8e3e"; });
   setTimeout(() => elements.forEach((element, index) => { element.style.outline = previous[index]; }), HIGHLIGHT_MS);
+}
+
+/** Closes the popup on top. Only for a popup this extension opened: with none open, it could close the page's own dialog. */
+export function pressEscape(element: HTMLElement): void {
+  const target = (element.ownerDocument.activeElement as HTMLElement | null) ?? element;
+  for (const type of ["keydown", "keyup"]) {
+    target.dispatchEvent(new KeyboardEvent(type, { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+  }
 }
 
 /** Elements whose click would submit a form or leave the page. */

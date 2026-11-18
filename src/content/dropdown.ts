@@ -48,6 +48,9 @@ function matchTarget<T extends Choice>(choices: T[], target: string): T | undefi
   return wanted.length < 3 ? undefined : choices.find(({ label }) => normalize(label).includes(wanted));
 }
 
+export const hasMatch = <T extends Choice>(choices: T[], targets: string[]): boolean =>
+  targets.some((target) => matchTarget(choices, target) !== undefined);
+
 /** In match mode, prefers a choice matching a target, in target order, before the first valid one. */
 export function pickChoice<T extends Choice>(choices: T[], targets: string[], mode: SelectionMode): T | undefined {
   if (mode === "match") {

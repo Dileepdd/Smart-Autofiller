@@ -15,10 +15,11 @@ async function buildFixtures(): Promise<void> {
   await rm(generated, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   await mkdir(generated, { recursive: true });
   const fixtures = join(e2eRoot, "fixtures");
-  const apps = { react: "react.jsx", vue: "vue.js", angular: "angular.js", libs: "libs.jsx", dates: "dates.jsx", vendor: "vendor.jsx" };
+  const apps = { react: "react.jsx", vue: "vue.js", angular: "angular.js", libs: "libs.jsx", dates: "dates.jsx", vendor: "vendor.jsx", radix: "radix.jsx" };
+  /** Vue 2, which cannot share a bundle with the Vue 3 fixtures. */
+  const vue2Apps = { elementui: "elementui.js" };
 
-  await build({
-    entryPoints: Object.fromEntries(Object.entries(apps).map(([name, file]) => [name, join(fixtures, file)])),
+  const options = {
     outdir: generated,
     bundle: true,
     format: "iife",
@@ -32,12 +33,16 @@ async function buildFixtures(): Promise<void> {
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
       ngDevMode: "false"
     }
-  });
+  } as const;
+  const entries = (group: Record<string, string>): Record<string, string> =>
+    Object.fromEntries(Object.entries(group).map(([name, file]) => [name, join(fixtures, file)]));
+  await build({ ...options, entryPoints: entries(apps) });
+  await build({ ...options, entryPoints: entries(vue2Apps), alias: { vue: "vue2" } });
 
   for (const name of await readdir(fixtures)) {
     if (name.endsWith(".html")) await cp(join(fixtures, name), join(generated, name));
   }
-  for (const name of Object.keys(apps)) {
+  for (const name of Object.keys({ ...apps, ...vue2Apps })) {
     const root = name === "angular" ? "<app-root></app-root>" : '<div id="root"></div><div id="vue"></div>';
     const styles = existsSync(join(generated, `${name}.css`)) ? `<link rel="stylesheet" href="/${name}.css">` : "";
     await writeFile(join(generated, `${name}.html`), `<!doctype html><html><head>${styles}</head><body>${root}<script src="/${name}.js"></script></body></html>`);

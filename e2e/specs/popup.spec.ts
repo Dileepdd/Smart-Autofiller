@@ -128,14 +128,25 @@ test.describe("the real extension", () => {
     await page.waitForFunction((previous) => (window as any).__state().email !== previous, email);
   });
 
-  test("the icon flags fields that could not be filled", async ({ extension, open }) => {
+  test("a fill says how many fields it filled, on the page", async ({ extension, open }) => {
+    const page = await open("simple");
+    await extension.useShippedDefaults();
+
+    await extension.clickToolbarIconWithoutPopup(page);
+
+    const note = page.locator("#smart-autofill-toast [role=status]");
+    await expect(note).toHaveText(/^\d+ fields? filled$/);
+    await expect(page.locator("#smart-autofill-toast")).toHaveCount(0, { timeout: 5000 });
+  });
+
+  test("the icon lists fields that could not be filled, without a warning badge", async ({ extension, open }) => {
     const page = await open("rejecting");
     await extension.useShippedDefaults();
 
     await extension.clickToolbarIconWithoutPopup(page);
 
     const icon = await extension.iconState();
-    expect(icon.badge).toBe("!");
+    expect(icon.badge).toBe("");
     expect(icon.title).toContain("Unsupported date picker");
   });
 
@@ -147,7 +158,7 @@ test.describe("the real extension", () => {
     await extension.clickToolbarIconWithoutPopup(page);
 
     const icon = await extension.iconState();
-    expect(icon.badge).toBe("!");
+    expect(icon.badge).toBe("");
     expect(icon.title).toContain("Chrome does not allow extensions on this page.");
   });
 
@@ -224,6 +235,7 @@ test.describe("the real extension", () => {
     expect(await options.inputValue("#checkboxMode")).toBe("required");
     expect(await options.inputValue("#nameRegion")).toBe("IN");
     expect(await options.isChecked("#fillCustomDropdowns")).toBe(false);
+    expect(await options.isChecked("#fillDependentDropdowns")).toBe(false);
     await options.close();
   });
 

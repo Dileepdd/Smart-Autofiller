@@ -122,12 +122,19 @@ const isPageControl = (element: HTMLElement): boolean =>
   element.closest("[class*=pagination]") !== null ||
   (element.closest(SITE_CHROME) !== null && element.closest("form, dialog, [role=dialog]") === null);
 
+const DIAL_CODE_LABEL = /^(country (selector|code)|(select )?dial code)$/i;
+
+/** The flag button of a phone field. Its value belongs to the phone number, so it must not count as the form's country. */
+const isDialCodePicker = (element: HTMLElement): boolean =>
+  DIAL_CODE_LABEL.test(element.getAttribute("aria-label") ?? "") &&
+  element.parentElement?.parentElement?.querySelector("input[type=tel]") != null;
+
 const inputType = (element: HTMLElement): string =>
   element.tagName === "INPUT" ? (element.getAttribute("type") ?? "text").toLowerCase() : "";
 
 export function classifyField(element: HTMLElement): FieldKind {
   const type = inputType(element);
-  if (isSearchField(element, type) || isPageControl(element)) return "skip";
+  if (isSearchField(element, type) || isPageControl(element) || isDialCodePicker(element)) return "skip";
 
   const scores = new Map<FieldKind, number>();
   const vote = (kind: FieldKind | undefined, weight: number): void => {

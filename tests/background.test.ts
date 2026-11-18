@@ -204,14 +204,14 @@ describe("background worker", () => {
     await vi.waitFor(() => expect(api.storage.local.set).toHaveBeenCalledWith({ smartAutofillSettings: expect.objectContaining({ dataMode: next }) }));
   });
 
-  it("warns on the icon when a field cannot be filled", async () => {
+  it("explains on hover when a field cannot be filled, without a warning badge", async () => {
     const { api, listeners } = await start();
     api.tabs.sendMessage.mockResolvedValue({ filled: false, message: "This field cannot be edited." } as never);
 
     listeners.menu({ menuItemId: "field", frameId: 0 }, { id: 7 });
 
     await vi.waitFor(() => expect(api.action.setTitle).toHaveBeenCalledWith({ tabId: 7, title: "Smart Autofill: This field cannot be edited." }));
-    expect(lastBadge(api)).toEqual([{ tabId: 7, text: "!" }]);
+    expect(lastBadge(api)).toEqual([{ tabId: 7, text: null }]);
   });
 
   it("offers saved profiles in the menu, with the active one selected", async () => {
@@ -328,14 +328,13 @@ describe("background worker", () => {
     expect(listeners.message({ type: "OTHER" }, {}, vi.fn())).toBeUndefined();
   });
 
-  it("marks the icon and lists the fields that need attention", async () => {
+  it("lists the fields that need attention on hover, without a warning badge", async () => {
     const { api, listeners } = await start();
     api.tabs.sendMessage.mockResolvedValue({ ...RESULT, unsupported: 1, details: ["Unsupported date picker: start date"] });
 
     await listeners.click({ id: 7 });
 
-    expect(lastBadge(api)).toEqual([{ tabId: 7, text: "!" }]);
-    expect(api.action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({ tabId: 7, color: "#f9ab00" });
+    expect(lastBadge(api)).toEqual([{ tabId: 7, text: null }]);
     expect(api.action.setTitle.mock.lastCall).toEqual([expect.objectContaining({ title: expect.stringContaining("Unsupported date picker: start date") })]);
   });
 
@@ -345,7 +344,7 @@ describe("background worker", () => {
 
     await listeners.click({ id: 7 });
 
-    expect(lastBadge(api)).toEqual([{ tabId: 7, text: "!" }]);
+    expect(lastBadge(api)).toEqual([{ tabId: 7, text: null }]);
     expect(api.action.setTitle).toHaveBeenLastCalledWith({ tabId: 7, title: "Smart Autofill: Chrome does not allow extensions on this page." });
   });
 
@@ -355,6 +354,6 @@ describe("background worker", () => {
 
     await listeners.click({ id: 7 });
 
-    expect(lastBadge(api)).toEqual([{ tabId: 7, text: "!" }]);
+    expect(lastBadge(api)).toEqual([{ tabId: 7, text: null }]);
   });
 });

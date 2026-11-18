@@ -89,7 +89,7 @@ Settings save automatically, persist in `chrome.storage.local` and apply on ever
 - Right-click the toolbar icon. **Test data** switches the data mode. **Filling options** holds ticks for **Fill on icon click**, **Replace existing values**, **Required fields only** and **Fill custom dropdowns**. The menu also has **Clear form**, **Undo last fill** and, once you have saved one, **Test profile**. **Options** opens every setting.
 - Open **Details** on `chrome://extensions` and choose **Extension options**.
 
-By default one click on the toolbar icon fills the page, with no popup. Hover over the icon to see how many fields were filled. The icon only changes to show an amber `!` warning if something needs attention.
+By default one click on the toolbar icon fills the page, with no popup. A short note on the page says how many fields were filled. Hover over the icon for the full report. Any fields that need attention are listed there too.
 
 With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page**, the result counts and the settings. Chrome closes a popup when the page takes focus, which some custom widgets do while being filled. The fill still finishes, and the result is always on the icon too.
 
@@ -105,7 +105,9 @@ With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page*
 
 Leave a name, company, department or title blank for a generated one. A text field's own date placeholder, such as `dd/mm/yyyy`, takes priority over the date format. A field's own `min` and `max` take priority over the number range, and decimals only apply where the field allows them.
 
-**Fill custom dropdowns** is off by default so a fill is instant. These dropdowns have to be opened and waited for, up to 5 seconds each when options load from a server. Native selects are always filled, and a country shown in a custom dropdown still drives the data. Turn it on in settings or the toolbar icon's right-click menu. Dropdowns with no ARIA roles are found by what appears on the page when they open.
+**Fill custom dropdowns** is off by default so a fill is instant. These dropdowns have to be opened and waited for, up to 5 seconds each when options load from a server. Native selects are always filled, and a country shown in a custom dropdown still drives the data. Turn it on in settings or the toolbar icon's right-click menu. Dropdowns with no ARIA roles are found by what appears on the page when they open. Action buttons such as Save or Apply are never treated as options.
+
+**Fill dependent custom dropdowns** is also off by default. A custom dropdown that needs an earlier selection to load, such as City after State, is left empty so the fill stays quick. Turn it on to wait for those lists and fill them too. Native selects that depend on each other are always followed, because they cost almost no time.
 
 "Selected form" means the form containing the focused field, or otherwise the form with the most fields.
 
@@ -208,6 +210,9 @@ Checked by `npm run test:e2e` in Playwright's Chromium with the built extension.
 | MUI TextField, Select, Autocomplete | Works |
 | react-select, Headless UI Listbox, Ant Design Input and Select | Works |
 | Mantine Select with server-loaded options, plain and searchable | Works |
+| Radix Select, and cmdk lists in a Radix Popover, with dependent lists loaded from a server | Works |
+| Element UI 2 Select on Vue 2, with dependent lists | Works |
+| Drawers that pick records from a table | Closed and reported, not filled |
 | Date pickers: Ant Design, MUI X, react-datepicker, Element Plus | Works, by typing |
 | Date picker: flatpickr | Works, through its calendar |
 | Names, email, company, domain, website, tax IDs, phones, postal codes and addresses for all five countries | Works |

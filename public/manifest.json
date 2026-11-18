@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Smart Autofill – QA Test Data",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minimum_chrome_version": "120",
   "description": "Fill web forms with realistic, connected test data in one click. Runs locally; no API key required.",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],

@@ -85,6 +85,7 @@ export interface AutofillSettings {
   fillOnOpen: boolean;
   /** Dropdowns built from page elements have to be opened and waited for, so they are opt-in. */
   fillCustomDropdowns: boolean;
+  fillDependentDropdowns: boolean;
   fillScope: FillScope;
   detectDynamic: boolean;
   includeFrames: boolean;
@@ -149,6 +150,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   fillExisting: true,
   fillOnOpen: true,
   fillCustomDropdowns: false,
+  fillDependentDropdowns: false,
   fillScope: "all",
   detectDynamic: true,
   includeFrames: true,

@@ -50,6 +50,17 @@ function labelTexts(element: HTMLElement): string[] {
   return labels.map(textOf);
 }
 
+/** A label beside the field that names no real field, as in `<label for="text">` repeated across a form. */
+function orphanLabelTexts(element: HTMLElement): string[] {
+  let node = element.parentElement;
+  for (let depth = 0; node && node.tagName !== "BODY" && depth < MAX_ANCESTORS && !holdsAnotherField(node, element); depth++) {
+    const label = node.querySelector<HTMLLabelElement>("label");
+    if (label) return label.control ? [] : [textOf(label)];
+    node = node.parentElement;
+  }
+  return [];
+}
+
 function describedByTexts(element: HTMLElement): string[] {
   const root = queryRoot(element);
   return (element.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean).flatMap((id) => {
@@ -130,8 +141,11 @@ export function fieldSignals(element: HTMLElement): Signal[] {
   const signals = (texts: string[], weight: number): Signal[] =>
     texts.map(splitWords).filter(Boolean).map((text) => ({ text, weight }));
 
+  const labels = labelTexts(element);
+  // Only a field with no label of its own needs one borrowed from beside it.
+  const borrowed = labels.length ? [] : orphanLabelTexts(element);
   return [
-    ...signals([...labelTexts(element), ...attributes(LABEL_ATTRIBUTES)], WEIGHT.label),
+    ...signals([...labels, ...attributes(LABEL_ATTRIBUTES), ...borrowed], WEIGHT.label),
     ...signals(attributes(NAME_ATTRIBUTES), WEIGHT.name),
     ...signals(attributes(HINT_ATTRIBUTES), WEIGHT.hint),
     ...signals([precedingText(element)], WEIGHT.nearby),

@@ -17,8 +17,9 @@ const SETTLE_MS = 150;
 const DROPDOWN_TICK_MS = 30;
 const DEPENDENT_WAIT_MS = 2500;
 /** Bounds a page full of dropdowns that never open, which each cost a timeout. */
-const DROPDOWN_BUDGET_MS = 20000;
+const DROPDOWN_BUDGET_MS = 30000;
 const MAX_REPORT_LINES = 50;
+const COULD_NOT_SELECT = "Could not select an option";
 /** These repeat an earlier field on purpose, so they must keep its value. */
 const CONFIRMATION = /\b(confirm|confirmation|retype|re ?enter|repeat|verify)\b/;
 
@@ -36,6 +37,11 @@ interface FillRun {
   filledFields: HTMLElement[];
   /** Custom dropdowns left alone because that setting is off. */
   skippedDropdowns: number;
+  /** Dropdowns that failed once, with the dropdown count at that moment. A later selection may be what they needed. */
+  unselected: Map<HTMLElement, number>;
+  dropdownsFilled: number;
+  /** Location levels this fill changed, whose children now have to load. */
+  changedParents: Set<FieldKind>;
   /** How many fields of each kind have been written, for making repeats unique. */
   kindCounts: Map<FieldKind, number>;
   changed: boolean;
@@ -105,6 +111,7 @@ function fillSelect(run: FillRun, select: HTMLSelectElement, kind: FieldKind): v
   const { targets, mode } = selection(run, select, kind, run.settings.dropdownMode);
   const choice = pickChoice(choices, targets, mode);
   if (!choice) return markSkipped(run, select);
+  if (select.value !== choice.value) run.changedParents.add(kind);
   writeSelect(select, choice.value);
   adoptChoice(run, kind, choice.label);
   markFilled(run, select);
@@ -115,13 +122,36 @@ async function fillComboboxField(run: FillRun, trigger: HTMLElement, kind: Field
   const { targets, mode } = selection(run, trigger, kind, run.settings.dropdownMode);
   const query = targets[0] ?? generateValue(kind, { ...run.settings, dataMode: "valid" }, run.profile);
   remember(trigger);
+  const previous = comboboxValue(trigger);
   const label = await fillCombobox(trigger, targets, query, mode);
   if (!label) {
     adoptShownValue(run, trigger, kind);
-    return markFailed(run, trigger, "Could not select an option");
+    if (!run.settings.fillDependentDropdowns || run.unselected.has(trigger)) return markFailed(run, trigger, COULD_NOT_SELECT);
+    run.unselected.set(trigger, run.dropdownsFilled);
+    return;
   }
+  if (label !== previous) run.changedParents.add(kind);
   adoptChoice(run, kind, label);
+  run.unselected.delete(trigger);
+  run.dropdownsFilled++;
   markFilled(run, trigger);
+}
+
+/** Waiting on a dependent custom dropdown is slow, so that is opt-in. A native select is read at once and always followed. */
+const waitsOnDependents = (run: FillRun, element: HTMLElement): boolean => isSelect(element) || run.settings.fillDependentDropdowns;
+
+/** With dependent dropdowns off, a custom list this fill has just reset is left alone rather than waited for. */
+const dependsOnThisFill = (run: FillRun, element: HTMLElement, kind: FieldKind): boolean =>
+  !waitsOnDependents(run, element) &&
+  ((kind === "state" && run.changedParents.has("country")) || (kind === "city" && (run.changedParents.has("country") || run.changedParents.has("state"))));
+
+/** Only a later selection can change what a failed dropdown offers. */
+const awaitsParent = (run: FillRun, element: HTMLElement): boolean => run.unselected.get(element) === run.dropdownsFilled;
+
+function reportUnselected(run: FillRun): void {
+  for (const element of run.unselected.keys()) {
+    if (element.isConnected && !run.done.has(element)) markFailed(run, element, COULD_NOT_SELECT);
+  }
 }
 
 /** A dropdown that may still be waiting for a parent selection to enable or populate it. */
@@ -166,12 +196,18 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
     const pending: HTMLElement[] = [];
     for (const element of queue) {
       const kind = kinds.get(element) ?? "text";
+      if (awaitsParent(run, element)) continue;
       if (!element.isConnected || !isVisible(element)) { run.skipped.add(element); continue; }
       if (!isSelect(element) && !run.settings.fillCustomDropdowns) { markSkipped(run, element); run.skippedDropdowns++; continue; }
       if (Date.now() > deadline) { markFailed(run, element, "Ran out of time"); continue; }
       if (isSelect(element) && !run.settings.fillExisting && hasSelection(element)) { markSkipped(run, element); continue; }
       if (!isSelect(element) && !run.settings.fillExisting && comboboxHasValue(element)) { markSkipped(run, element); continue; }
-      if (isPending(element)) { pending.push(element); continue; }
+      if (dependsOnThisFill(run, element, kind)) { markSkipped(run, element); continue; }
+      if (isPending(element)) {
+        if (waitsOnDependents(run, element)) pending.push(element);
+        else markSkipped(run, element);
+        continue;
+      }
 
       try {
         if (isSelect(element)) fillSelect(run, element, kind);
@@ -348,6 +384,9 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
     written: [],
     filledFields: [],
     skippedDropdowns: 0,
+    unselected: new Map(),
+    dropdownsFilled: 0,
+    changedParents: new Set(),
     kindCounts: new Map(),
     changed: false
   };
@@ -360,6 +399,7 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
     allowSubmissions();
   }
 
+  reportUnselected(run);
   reportClearedFields(run);
   if (run.skippedDropdowns) run.result.details.push(`Skipped ${run.skippedDropdowns} custom dropdowns. Turn on Fill custom dropdowns to include them.`);
   run.result.skipped = run.skipped.size;

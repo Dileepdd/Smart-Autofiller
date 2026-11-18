@@ -566,7 +566,7 @@ describe("fillPage custom dropdowns", () => {
       document.body.insertAdjacentHTML("beforeend", '<ul id="list" role="listbox"></ul>');
       setTimeout(() => {
         find<HTMLElement>("#list").innerHTML = '<li id="hit" role="option">India</li>';
-        find<HTMLElement>("#hit").addEventListener("click", () => { trigger.textContent = "India"; });
+        find<HTMLElement>("#hit").addEventListener("click", () => { trigger.textContent = "India"; trigger.setAttribute("aria-expanded", "false"); find<HTMLElement>("#list").remove(); });
       }, 1200);
     });
 

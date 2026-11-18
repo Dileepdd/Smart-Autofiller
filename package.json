@@ -1,6 +1,6 @@
 {
   "name": "smart-autofill",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A local-first Chrome Manifest V3 extension for realistic QA form data.",
   "type": "module",

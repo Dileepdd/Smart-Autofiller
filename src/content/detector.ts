@@ -5,7 +5,8 @@ export type NativeField = HTMLInputElement | HTMLTextAreaElement | HTMLSelectEle
 const NATIVE_FIELDS =
   "input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=file])" +
   ":not([type=image]):not([type=color]):not([type=range]), textarea, select";
-const COMBOBOXES = "[role=combobox], [aria-haspopup=listbox]";
+/** Element UI's select is a read-only input with no ARIA roles. */
+const COMBOBOXES = "[role=combobox], [aria-haspopup=listbox], .el-select > .el-input > input";
 const EDITABLES = "[contenteditable=''], [contenteditable=true]";
 /** Editable day, month and year sections of a sectioned date field, which is filled through its own input. */
 const DATE_SECTIONS = "[role=spinbutton]";
@@ -22,17 +23,31 @@ export const isChoice = (element: Element): element is HTMLInputElement =>
 export const isCombobox = (element: Element): boolean => !isSelect(element) && element.matches(COMBOBOXES);
 export const isEditable = (element: Element): boolean => !isCombobox(element) && element.matches(EDITABLES);
 
+/** How far the page and the containers around an element are scrolled. */
+function scrolledBy(element: HTMLElement): { x: number; y: number } {
+  const offset = { x: 0, y: 0 };
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    offset.x += node.scrollLeft;
+    offset.y += node.scrollTop;
+  }
+  return offset;
+}
+
 export const isVisible = (element: HTMLElement): boolean => {
   const target = element.matches(SECTIONED_DATE_INPUT) && element.parentElement ? element.parentElement : element;
   const style = getComputedStyle(target);
   const rect = target.getBoundingClientRect();
-  return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0 &&
-    rect.right > 0 && rect.bottom > 0 && !target.closest("[aria-hidden=true], [inert]");
+  if (style.display === "none" || style.visibility === "hidden" || rect.width <= 0 || rect.height <= 0) return false;
+  if (target.closest("[aria-hidden=true], [inert]")) return false;
+  if (rect.right > 0 && rect.bottom > 0) return true;
+  // Only a field placed off the page counts as hidden, not one scrolled past, so scrolling is undone first.
+  const { x, y } = scrolledBy(target);
+  return rect.right + x > 0 && rect.bottom + y > 0;
 };
 
 /** True when the control cannot be operated at all. */
 export const isInactive = (element: HTMLElement): boolean =>
-  ((isInput(element) || isTextArea(element) || isSelect(element)) && element.disabled) ||
+  ((isInput(element) || isTextArea(element) || isSelect(element) || element.tagName === "BUTTON") && (element as HTMLInputElement).disabled) ||
   element.closest("fieldset[disabled]") !== null ||
   element.getAttribute("aria-disabled") === "true";
 

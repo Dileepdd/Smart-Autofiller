@@ -6,9 +6,7 @@ import { libraryFor } from "../shared/valueLibrary";
 
 const NAME = "Smart Autofill";
 const BADGE_OK = "#7c2ee6";
-const BADGE_WARNING = "#f9ab00";
 const BADGE_TEXT_OK = "#ffffff";
-const BADGE_TEXT_WARNING = "#202124";
 const UNDO_MENU = "undo";
 const CLEAR_MENU = "clear";
 const DATA_MENU = "dataMode";
@@ -120,10 +118,8 @@ function applySettings(): Promise<void> {
   return applying;
 }
 
-async function showOnIcon(tabId: number, badge: string, title: string, isWarning: boolean): Promise<void> {
+async function showOnIcon(tabId: number, badge: string, title: string): Promise<void> {
   await Promise.all([
-    chrome.action.setBadgeBackgroundColor({ tabId, color: isWarning ? BADGE_WARNING : BADGE_OK }),
-    chrome.action.setBadgeTextColor({ tabId, color: isWarning ? BADGE_TEXT_WARNING : BADGE_TEXT_OK }),
     // Null sends the tab back to the badge set for all tabs. The types wrongly require a string.
     chrome.action.setBadgeText({ tabId, text: badge || null } as unknown as chrome.action.BadgeTextDetails),
     chrome.action.setTitle({ tabId, title })
@@ -135,32 +131,28 @@ function showResult(tabId: number, result: FillResult, mode: DataMode): Promise<
   const label = mode === "valid" ? "" : ` (${DATA_MODES[mode].label})`;
   const summary = `${NAME}: ${result.filled} filled, ${result.skipped} skipped, ${problems} need attention${label}`;
   const title = [summary, ...result.details].join("\n");
-  return showOnIcon(tabId, problems ? "!" : "", title, problems > 0);
+  return showOnIcon(tabId, "", title);
 }
 
 async function undo(tabId: number): Promise<void> {
   const message = undoMessage(await undoFill(tabId));
-  await showOnIcon(tabId, "", `${NAME}: ${message}`, false);
+  await showOnIcon(tabId, "", `${NAME}: ${message}`);
 }
 
 /** Runs a command on a page and leaves the outcome on the icon, as a fill does. */
-async function reportOnIcon(tabId: number, command: () => Promise<{ message: string; isWarning?: boolean }>): Promise<void> {
+async function reportOnIcon(tabId: number, command: () => Promise<string>): Promise<void> {
   try {
-    const { message, isWarning = false } = await command();
-    await showOnIcon(tabId, isWarning ? "!" : "", `${NAME}: ${message}`, isWarning);
+    await showOnIcon(tabId, "", `${NAME}: ${await command()}`);
   } catch (error) {
-    await showOnIcon(tabId, "!", `${NAME}: ${fillErrorMessage(error)}`, true);
+    await showOnIcon(tabId, "", `${NAME}: ${fillErrorMessage(error)}`);
   }
 }
 
 const clear = (tabId: number): Promise<void> =>
-  reportOnIcon(tabId, async () => ({ message: clearMessage(await clearTab(tabId, await getEffectiveSettings())) }));
+  reportOnIcon(tabId, async () => clearMessage(await clearTab(tabId, await getEffectiveSettings())));
 
 const fillOneField = (tabId: number, frameId: number | undefined, value?: string): Promise<void> =>
-  reportOnIcon(tabId, async () => {
-    const { filled, message } = await fillField(tabId, frameId, await getEffectiveSettings(), value);
-    return { message, isWarning: !filled };
-  });
+  reportOnIcon(tabId, async () => (await fillField(tabId, frameId, await getEffectiveSettings(), value)).message);
 
 function libraryValue(menuItemId: string, showSecurityValues: boolean): string | undefined {
   const [category, index] = menuItemId.slice(VALUE_PREFIX.length).split(":");
@@ -211,7 +203,7 @@ async function nextDataMode(tabId: number): Promise<void> {
   const modes = Object.keys(DATA_MODES) as DataMode[];
   const dataMode = modes[(modes.indexOf(settings.dataMode) + 1) % modes.length];
   await saveSettings({ ...settings, dataMode });
-  await showOnIcon(tabId, "", `${NAME}: ${DATA_MODES[dataMode].label}`, false);
+  await showOnIcon(tabId, "", `${NAME}: ${DATA_MODES[dataMode].label}`);
 }
 
 /** The keyboard has no menu to say which frame it came from, so a field is found from the focused element. */
@@ -229,7 +221,7 @@ chrome.commands.onCommand.addListener((command, tab) => {
 
 /** Runs a fill and leaves its result on the icon, where it survives the popup closing. */
 async function fillAndReport(tabId: number): Promise<FillOutcome> {
-  await showOnIcon(tabId, "…", `${NAME}: filling`, false);
+  await showOnIcon(tabId, "…", `${NAME}: filling`);
   try {
     const settings = await getEffectiveSettings();
     const result = await fillTab(tabId, settings);
@@ -237,7 +229,7 @@ async function fillAndReport(tabId: number): Promise<FillOutcome> {
     return { result };
   } catch (error) {
     const message = fillErrorMessage(error);
-    await showOnIcon(tabId, "!", `${NAME}: ${message}`, true);
+    await showOnIcon(tabId, "", `${NAME}: ${message}`);
     return { error: message };
   }
 }

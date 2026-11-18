@@ -14,5 +14,6 @@ export const settingsWith = (overrides: Partial<AutofillSettings> = {}): Autofil
   ...DEFAULT_SETTINGS,
   fillExisting: false,
   fillCustomDropdowns: true,
+  fillDependentDropdowns: true,
   ...overrides
 });

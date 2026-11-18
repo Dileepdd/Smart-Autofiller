@@ -208,7 +208,7 @@ export class Extension {
 
   /** Most tests set rules in the popup and check that values are kept, so they use the popup mode. */
   async clearSettings(): Promise<void> {
-    await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false, fillExisting: false, fillCustomDropdowns: true } })", true);
+    await this.writeStorage("chrome.storage.local.set({ smartAutofillSettings: { fillOnOpen: false, fillExisting: false, fillCustomDropdowns: true, fillDependentDropdowns: true } })", true);
   }
 
   /** Saves settings as an older version of the extension would have left them. */

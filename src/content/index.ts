@@ -1,6 +1,7 @@
 import { clearPage } from "./clear";
 import { fillFocusedField } from "./field";
 import { fillPage } from "./filler";
+import { filledMessage, showToast } from "./toast";
 import { undoLastFill } from "./undo";
 import { DEFAULT_SETTINGS, AutofillSettings, FillResult } from "../shared/types";
 
@@ -34,7 +35,10 @@ if (!runtime.__smartAutofillListenerInstalled) {
     }
     filling = true;
     fillPage(settingsFrom(message))
-      .then(sendResponse)
+      .then((result) => {
+        showToast(filledMessage(result.filled));
+        sendResponse(result);
+      })
       .catch((error: unknown) => sendResponse(failure(String(error))))
       .finally(() => { filling = false; });
     return true;
