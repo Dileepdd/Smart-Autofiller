@@ -1,29 +1,55 @@
-import { AutofillSettings, ClearResult, FieldResult, FillResult, UndoResult } from "./types";
+import { localeFile, needsLocaleFile } from "../generators/localeRegistry";
+import { AutofillSettings, ClearResult, FieldResult, FillResult, ReportFormat, UndoResult } from "./types";
 
 /** Runs a command in a tab or frame this extension has been granted, through a click on the icon or its menus. */
-async function sendToPage<T>(tabId: number, message: object, frameId?: number): Promise<T> {
+async function sendToPage<T>(tabId: number, message: { type: string; settings?: AutofillSettings; value?: string }, frameId?: number, loadLanguage = false): Promise<T> {
   const target = frameId === undefined ? { tabId } : { tabId, frameIds: [frameId] };
+  const send = (body: object): Promise<unknown> =>
+    frameId === undefined ? chrome.tabs.sendMessage(tabId, body) : chrome.tabs.sendMessage(tabId, body, { frameId });
   await chrome.scripting.executeScript({ target, files: ["content.js"] });
-  const sent = frameId === undefined ? chrome.tabs.sendMessage(tabId, message) : chrome.tabs.sendMessage(tabId, message, { frameId });
-  const response = await sent as T | undefined;
+  if (loadLanguage) {
+    // Name data for most languages ships as its own file, loaded only for a page that needs it.
+    const answer = await send({ type: "SMART_AUTOFILL_LANGUAGE", settings: message.settings }) as { country?: unknown } | undefined;
+    if (needsLocaleFile(answer?.country)) await chrome.scripting.executeScript({ target, files: [localeFile(answer.country)] });
+  }
+  const response = await send(message) as T | undefined;
   if (!response) throw new Error("The page did not respond. Try reloading it.");
   return response;
 }
 
 export const fillTab = (tabId: number, settings: AutofillSettings): Promise<FillResult> =>
-  sendToPage(tabId, { type: "SMART_AUTOFILL_FILL", settings });
+  sendToPage(tabId, { type: "SMART_AUTOFILL_FILL", settings }, undefined, true);
 
 export const clearTab = (tabId: number, settings: AutofillSettings): Promise<ClearResult> =>
   sendToPage(tabId, { type: "SMART_AUTOFILL_CLEAR", settings });
 
 /** Fills the field a menu was opened on. With no `value`, one is generated for that field. */
 export const fillField = (tabId: number, frameId: number | undefined, settings: AutofillSettings, value?: string): Promise<FieldResult> =>
-  sendToPage(tabId, { type: "SMART_AUTOFILL_FIELD", settings, value }, frameId);
+  sendToPage(tabId, { type: "SMART_AUTOFILL_FIELD", settings, value }, frameId, true);
 
 /** Sent by the popup. The worker runs the fill, because a popup closes if the page takes focus. */
 export const FILL_TAB_MESSAGE = "SMART_AUTOFILL_FILL_TAB";
 
 export type FillOutcome = { result: FillResult } | { error: string };
+
+/** Copies the last fill on that page. Nothing to copy when no fill has run since the page loaded. */
+export async function copyFill(tabId: number, format: ReportFormat): Promise<boolean> {
+  try {
+    const answer = await chrome.tabs.sendMessage(tabId, { type: "SMART_AUTOFILL_COPY", format }) as { copied?: boolean } | undefined;
+    return answer?.copied === true;
+  } catch {
+    return false;
+  }
+}
+
+/** The last fill on that page as text, for the popup to copy. */
+export async function fillReport(tabId: number, format: ReportFormat): Promise<{ text: string; count: number }> {
+  try {
+    return (await chrome.tabs.sendMessage(tabId, { type: "SMART_AUTOFILL_REPORT", format }) as { text: string; count: number } | undefined) ?? { text: "", count: 0 };
+  } catch {
+    return { text: "", count: 0 };
+  }
+}
 
 /** Asks the tab to restore the values from before its last fill. */
 export async function undoFill(tabId: number): Promise<UndoResult> {

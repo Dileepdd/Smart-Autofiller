@@ -1,4 +1,5 @@
 import { fieldSignals } from "./context";
+import { pageLanguage, rulesFor } from "./languages";
 
 export type FieldKind =
   | "firstName" | "middleName" | "lastName" | "fullName" | "email" | "gender"
@@ -105,7 +106,12 @@ const TYPE_KINDS: Readonly<Record<string, readonly FieldKind[]>> = {
   number: ["age", "experience", "phone", "zip", "taxId", "aadhaar", "bankAccount", "companySize", "amount", "number"]
 };
 
-const matchRule = (text: string): FieldKind | undefined => RULES.find(([, pattern]) => pattern.test(text))?.[0];
+/**
+ * Other languages' words first: they are distinctive enough not to appear on an English page, and
+ * English catch-alls such as "date" would otherwise win over "date de naissance".
+ */
+const matchRule = (text: string, other: ReadonlyArray<readonly [FieldKind, RegExp]>): FieldKind | undefined =>
+  (other.find(([, pattern]) => pattern.test(text)) ?? RULES.find(([, pattern]) => pattern.test(text)))?.[0];
 
 function autocompleteKind(element: HTMLElement): FieldKind | undefined {
   const token = (element.getAttribute("autocomplete") ?? "").trim().toLowerCase().split(/\s+/).pop() ?? "";
@@ -141,7 +147,8 @@ export function classifyField(element: HTMLElement): FieldKind {
     if (kind) scores.set(kind, (scores.get(kind) ?? 0) + weight);
   };
   vote(autocompleteKind(element), AUTOCOMPLETE_WEIGHT);
-  for (const { text, weight } of fieldSignals(element)) vote(matchRule(text), weight);
+  const other = rulesFor(pageLanguage(element.ownerDocument));
+  for (const { text, weight } of fieldSignals(element)) vote(matchRule(text, other), weight);
 
   const allowed = TYPE_KINDS[type];
   const ranked = [...scores.entries()]

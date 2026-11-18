@@ -1,7 +1,9 @@
-import { faker, fakerEN_AU, fakerEN_CA, fakerEN_GB, fakerEN_IN, fakerEN_US } from "@faker-js/faker";
+import { base, en, Faker, faker, fakerEN_AU, fakerEN_CA, fakerEN_GB, fakerEN_IN, fakerEN_US } from "@faker-js/faker";
+import { foldAccents } from "../shared/text";
 import { PROFILE_TOKENS, renderTemplate } from "../shared/template";
 import { AutofillSettings, CountryCode } from "../shared/types";
 import { createIndianIdentifiers, IndianIdentifiers } from "./identifiers";
+import { registeredLocale } from "./localeRegistry";
 import { City, findCity, findLocale, findRegion, Locale, localeByCode, Region } from "./locales";
 
 /** Everything one fill writes, created up front so related fields agree with each other. */
@@ -39,10 +41,26 @@ export interface Profile extends IndianIdentifiers {
   invoiceId: string;
 }
 
-const NAME_SOURCES: Record<CountryCode, typeof faker> = { IN: fakerEN_IN, US: fakerEN_US, GB: fakerEN_GB, CA: fakerEN_CA, AU: fakerEN_AU };
+const NAME_SOURCES: Partial<Record<CountryCode, Faker>> = { IN: fakerEN_IN, US: fakerEN_US, GB: fakerEN_GB, CA: fakerEN_CA, AU: fakerEN_AU };
+const loadedSources = new Map<CountryCode, Faker>();
 
-const nameSource = (settings: AutofillSettings): typeof faker =>
-  NAME_SOURCES[settings.nameRegion === "country" ? settings.country : settings.nameRegion];
+/** A country whose data file was not loaded gets English names, while its addresses still come from its own table. */
+function sourceFor(code: CountryCode): { names: Faker; local: boolean } {
+  const bundled = NAME_SOURCES[code];
+  if (bundled) return { names: bundled, local: false };
+  const loaded = loadedSources.get(code);
+  if (loaded) return { names: loaded, local: true };
+  const definition = registeredLocale(code);
+  if (!definition) return { names: fakerEN_US, local: false };
+  const names = new Faker({ locale: [definition, en, base] });
+  loadedSources.set(code, names);
+  return { names, local: true };
+}
+
+const nameCountry = (settings: AutofillSettings): CountryCode =>
+  settings.nameRegion === "country" ? settings.country : settings.nameRegion;
+
+const nameSource = (settings: AutofillSettings): Faker => sourceFor(nameCountry(settings)).names;
 
 /** Earliest age at which experience starts counting. */
 const WORKING_AGE = 18;
@@ -52,8 +70,9 @@ export const pickInt = (min: number, max: number): number =>
 
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 
+/** Email addresses and domains stay plain ASCII: "Müller" becomes "muller", not "mller". */
 const cleanDomainPart = (value: string): string =>
-  value.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 32) || "example";
+  foldAccents(value.toLowerCase()).replace(/[^a-z0-9]+/g, "").slice(0, 32) || "example";
 
 const normalizeSuffix = (suffix: string): string => (suffix.startsWith(".") ? suffix : `.${suffix}`);
 
@@ -146,7 +165,8 @@ function generateProfile(settings: AutofillSettings): Profile {
     website: `https://${domain}`,
     phone: "",
     taxId: "",
-    street: faker.location.streetAddress(),
+    // A country loaded from its own file has local street names, such as "Hauptstraße 12".
+    street: (sourceFor(settings.country).local ? sourceFor(settings.country).names : faker).location.streetAddress(),
     addressLine2: faker.location.secondaryAddress(),
     city: "",
     region: "",
@@ -195,7 +215,7 @@ export function adoptRegion(profile: Profile, label: string): void {
 
 export function adoptCity(profile: Profile, label: string): void {
   const locale = findLocale(profile.countryCode);
-  const match = locale && findCity(locale, label);
+  const match = locale && findCity(locale, label, profile.region);
   if (match) setCity(profile, match.region, match.city);
   else profile.city = label;
 }

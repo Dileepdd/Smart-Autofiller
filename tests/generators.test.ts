@@ -122,7 +122,7 @@ describe("createProfile location", () => {
   it.each(LOCALES.map(({ code }) => code))("keeps %s geographically consistent", (country) => {
     for (const profile of sampleProfiles({ country })) {
       const locale = findLocale(profile.country);
-      const match = locale && findCity(locale, profile.city);
+      const match = locale && findCity(locale, profile.city, profile.region);
       expect(locale?.code).toBe(country);
       expect(match?.region.name).toBe(profile.region);
       expect(match?.city.postalCode).toBe(profile.postalCode);

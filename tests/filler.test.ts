@@ -1192,10 +1192,12 @@ describe("fillPage safety", () => {
   it("never puts a password in the report", async () => {
     render('<input id="field" type="password" name="password" pattern="[0-9]{4}">');
     Object.defineProperty(find("#field"), "validity", { value: { valid: false } });
+    document.body.insertAdjacentHTML("beforeend", '<span class="error">Password field rejected</span>');
 
-    const result = await fillPage(settingsWith());
+    const result = await fillPage(settingsWith({ validationReport: true }));
 
     expect(result.details).toHaveLength(1);
+    expect(result.details[0]).toMatch(/^Invalid: .* – Rejected by the page$/);
     expect(result.details[0]).not.toContain(find("#field").value);
   });
 
@@ -1268,13 +1270,50 @@ describe("fillPage safety", () => {
     expect(result.details[0]).toContain("rejected");
   });
 
-  it("reports a field the page marks as invalid", async () => {
+  it("reports a field the page marks as invalid, when the validation report is on", async () => {
+    render('<div><input id="field" name="city"></div>');
+    find("#field").addEventListener("input", ({ target }) => (target as HTMLElement).setAttribute("aria-invalid", "true"));
+
+    const result = await fillPage(settingsWith({ validationReport: true }));
+
+    expect(result.details[0]).toMatch(/^Invalid: city.* – Marked invalid by the page$/);
+  });
+
+  it("leaves the validation report out by default", async () => {
     render('<div><input id="field" name="city"></div>');
     find("#field").addEventListener("input", ({ target }) => (target as HTMLElement).setAttribute("aria-invalid", "true"));
 
     const result = await fillPage(settingsWith());
 
-    expect(result.details[0]).toContain("Check validation");
+    expect(result.details.join("\n")).not.toContain("Invalid:");
+  });
+
+  it.each([
+    ["an error shown beside the field", '<div><input id="field" name="zip"><span class="error-text">Invalid Code</span></div>'],
+    ["an error the field points to", '<input id="field" name="zip" aria-describedby="e"><p id="e" role="alert">Invalid Code</p>'],
+    ["an error the field names as its error message", '<input id="field" name="zip" aria-invalid="true" aria-errormessage="e"><p id="e" class="invalid-feedback">Invalid Code</p>']
+  ])("quotes %s", async (_name, html) => {
+    render(html);
+
+    const result = await fillPage(settingsWith({ validationReport: true }));
+
+    expect(result.details).toEqual([expect.stringMatching(/^Invalid: zip.* – Invalid Code$/)]);
+  });
+
+  it("does not mistake helper text for an error", async () => {
+    render('<div><input id="field" name="zip"><small class="helper">Format: 12345</small></div>');
+
+    const result = await fillPage(settingsWith({ validationReport: true }));
+
+    expect(result.details.join("\n")).not.toContain("Invalid:");
+  });
+
+  it("does not borrow the error of a neighbouring field", async () => {
+    render('<div><input id="field" name="city"><input id="other" name="zip" disabled><span class="error">Invalid Code</span></div>');
+
+    const result = await fillPage(settingsWith({ validationReport: true }));
+
+    expect(result.details.join("\n")).not.toContain("Invalid: city");
   });
 
   it("reports a field that clears its value after blur", async () => {

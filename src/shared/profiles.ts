@@ -55,6 +55,26 @@ export const deleteProfile = (store: ProfileStore, id: string): ProfileStore => 
   profiles: store.profiles.filter((profile) => profile.id !== id)
 });
 
+const PROFILE_KEY_SET = new Set<string>(PROFILE_KEYS);
+
+/** Keeps only well-formed profiles from a file, with only the values a profile may set. */
+export function sanitizeProfiles(value: unknown): TestProfile[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): TestProfile[] => {
+    if (typeof item !== "object" || item === null) return [];
+    const { id, name, overrides, customRules } = item as Record<string, unknown>;
+    if (typeof id !== "string" || !id || typeof name !== "string" || !name.trim()) return [];
+    const safeOverrides = typeof overrides === "object" && overrides !== null
+      ? Object.fromEntries(Object.entries(overrides).filter(([key, entry]) => PROFILE_KEY_SET.has(key) && (typeof entry === "string" || typeof entry === "number")))
+      : {};
+    const rules = Array.isArray(customRules)
+      ? customRules.filter((rule): rule is { match: string; value: string } =>
+        typeof rule === "object" && rule !== null && typeof rule.match === "string" && typeof rule.value === "string")
+      : [];
+    return [{ id, name: name.trim(), overrides: safeOverrides, customRules: rules }];
+  });
+}
+
 export const selectProfile = (store: ProfileStore, id: string | null): ProfileStore => ({
   ...store,
   activeProfileId: store.profiles.some((profile) => profile.id === id) ? id : null

@@ -134,7 +134,8 @@ test.describe("Element UI form with dependent selects", () => {
       await page.goto(page.url().split("?")[0] + query);
       await page.waitForFunction("typeof window.__state === 'function'");
 
-      const result = await fillThroughPopup(extension, page, { country: "IN", ...CUSTOM });
+      // A fixed data language replaces the country the page shows, which is what this test needs.
+      const result = await fillThroughPopup(extension, page, { country: "IN", dataLanguage: "IN", ...CUSTOM });
 
       const state = await pageState(page);
       expect(state).toMatchObject({ country: "India", state: "Goa", city: "Panaji", status: "Active", readOnly: "Locked" });
@@ -144,4 +145,14 @@ test.describe("Element UI form with dependent selects", () => {
       expect(await page.locator("#street input").inputValue()).not.toMatch(/^(Apt|Suite)/);
     });
   }
+
+  test("following the page keeps the country it already shows", async ({ extension, open }) => {
+    const page = await open("elementui");
+
+    await fillThroughPopup(extension, page, { country: "IN", ...CUSTOM });
+
+    const state = await pageState(page);
+    expect(state).toMatchObject({ country: "United States", state: "Alabama", city: "Mobile" });
+    expect(state.zip).toMatch(/^[0-9]{5}$/);
+  });
 });

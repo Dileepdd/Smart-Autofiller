@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Smart Autofill – QA Test Data",
-  "version": "0.1.1",
+  "name": "Smart Autofill – Form Filler & Test Data for QA",
+  "version": "0.1.2",
   "minimum_chrome_version": "120",
-  "description": "Fill web forms with realistic, connected test data in one click. Runs locally; no API key required.",
+  "description": "Form filler for QA and developers: fill any form with realistic fake test data in one click. Invalid and edge cases too. No sign-up.",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
   "background": {
     "service_worker": "background.js"

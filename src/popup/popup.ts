@@ -1,6 +1,6 @@
-import { clearMessage, clearTab, FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, undoFill, undoMessage } from "../shared/fill";
-import { activeProfile, getEffectiveSettings, getProfileStore } from "../shared/profiles";
-import { getSettings, saveSettings } from "../shared/settings";
+import { clearMessage, clearTab, FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, fillReport, undoFill, undoMessage } from "../shared/fill";
+import { activeProfile, getEffectiveSettings, getProfileStore, sanitizeProfiles, saveProfileStore } from "../shared/profiles";
+import { exportFile, getSettings, readExportFile, saveSettings } from "../shared/settings";
 import { DATA_MODES, FillResult } from "../shared/types";
 import { initProfiles } from "./profilesForm";
 import { fillForm, readForm } from "./settingsForm";
@@ -35,6 +35,7 @@ function showDetails(details: string[]): void {
 function showResult(result?: FillResult): void {
   byId("summary").hidden = !result;
   byId("undoButton").hidden = !result?.filled;
+  byId("copyButton").hidden = !result?.filled;
   showDetails(result?.details ?? []);
   if (!result) return;
   byId("countFilled").textContent = String(result.filled);
@@ -46,7 +47,10 @@ function showResult(result?: FillResult): void {
   else status(result.filled ? "Page filled." : "Nothing to fill on this page.");
 }
 
-const COUNTRY_NAMES: Record<string, string> = { IN: "India", US: "United States", GB: "United Kingdom", CA: "Canada", AU: "Australia" };
+const COUNTRY_NAMES: Record<string, string> = {
+  IN: "India", US: "United States", GB: "United Kingdom", CA: "Canada", AU: "Australia",
+  DE: "Germany", FR: "France", ES: "Spain", PT: "Portugal", IT: "Italy", NL: "Netherlands"
+};
 
 async function showProfile(): Promise<void> {
   const [settings, store] = await Promise.all([getEffectiveSettings(), getProfileStore()]);
@@ -103,6 +107,48 @@ async function fillActiveTab(): Promise<void> {
   }
 }
 
+/** The popup can write to the clipboard itself, because the click on its button allows it. */
+async function copyLastFill(): Promise<void> {
+  const { reportFormat } = await getSettings();
+  const { text, count } = await fillReport(await activeTabId(), reportFormat);
+  if (!count) return status("Nothing to copy yet. Fill the form first.", true);
+  try {
+    await navigator.clipboard.writeText(text);
+    status(`Copied ${count} fields for a bug report.`);
+  } catch {
+    status("Could not copy to the clipboard.", true);
+  }
+}
+
+const shareState = (message: string): void => { byId("shareState").textContent = message; };
+const IMPORT_NOTE = "smartAutofillImportNote";
+
+async function exportSettings(): Promise<void> {
+  const [settings, store] = await Promise.all([getSettings(), getProfileStore()]);
+  const file = new Blob([JSON.stringify(exportFile(settings, store.profiles), null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(file);
+  link.download = `smart-autofill-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  shareState(`Exported settings and ${store.profiles.length} test ${store.profiles.length === 1 ? "profile" : "profiles"}.`);
+}
+
+async function importSettings(): Promise<void> {
+  const input = byId<HTMLInputElement>("importFile");
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  const read = readExportFile(await file.text());
+  if ("error" in read) return shareState(read.error);
+  const profiles = sanitizeProfiles(read.profiles);
+  await saveSettings(read.settings);
+  await saveProfileStore({ profiles, activeProfileId: null });
+  // Reloading redraws every setting and profile from storage, and the note survives it.
+  try { sessionStorage.setItem(IMPORT_NOTE, `Imported settings and ${profiles.length} test ${profiles.length === 1 ? "profile" : "profiles"}.`); } catch { /* the reload still applies the import */ }
+  location.reload();
+}
+
 async function undoActiveTab(): Promise<void> {
   showResult();
   status(undoMessage(await undoFill(await activeTabId())));
@@ -128,6 +174,10 @@ byId("settingsForm").addEventListener("submit", (event) => event.preventDefault(
 byId("fillButton").addEventListener("click", () => void fillActiveTab());
 byId("undoButton").addEventListener("click", () => void undoActiveTab());
 byId("clearButton").addEventListener("click", () => void clearActiveTab());
+byId("copyButton").addEventListener("click", () => void copyLastFill());
+byId("exportButton").addEventListener("click", () => void exportSettings());
+byId("importButton").addEventListener("click", () => byId<HTMLInputElement>("importFile").click());
+byId("importFile").addEventListener("change", () => void importSettings());
 
 if (isOptionsPage) {
   document.body.classList.add("is-options");
@@ -136,6 +186,14 @@ if (isOptionsPage) {
 
 async function load(): Promise<void> {
   fillForm(await getSettings());
+  try {
+    const note = sessionStorage.getItem(IMPORT_NOTE);
+    if (note) {
+      sessionStorage.removeItem(IMPORT_NOTE);
+      shareState(note);
+      showView("settings");
+    }
+  } catch { /* no note to show */ }
   await initProfiles(() => void showProfile());
   await showProfile();
 }

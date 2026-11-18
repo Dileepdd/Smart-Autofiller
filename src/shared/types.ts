@@ -2,7 +2,9 @@ export type SelectionMode = "match" | "first" | "random";
 export type MultiSelectMode = "first" | "random" | "multiple";
 export type CheckboxMode = "required" | "all" | "none";
 export type FillScope = "all" | "form";
-export type CountryCode = "US" | "IN" | "GB" | "CA" | "AU";
+export type CountryCode = "US" | "IN" | "GB" | "CA" | "AU" | "DE" | "FR" | "ES" | "PT" | "IT" | "NL";
+/** "page" uses the country or language the page itself shows, and otherwise the Country setting. */
+export type DataLanguage = "page" | CountryCode;
 export type PhoneFormat = "national" | "international";
 export type DateFormat = "YYYY-MM-DD" | "DD/MM/YYYY" | "MM/DD/YYYY";
 export type Gender = "any" | "male" | "female";
@@ -10,8 +12,9 @@ export type UsernameMode = "name" | "random";
 export type TextMode = "realistic" | "random";
 export type AddressFormat = "standard" | "international";
 export type NameRegion = CountryCode | "country";
-export type CurrencySetting = "auto" | "INR" | "USD" | "GBP" | "CAD" | "AUD";
+export type CurrencySetting = "auto" | "INR" | "USD" | "GBP" | "CAD" | "AUD" | "EUR";
 export type DataMode = "valid" | "invalid" | "minimum" | "maximum" | "edge";
+export type ReportFormat = "text" | "markdown" | "json";
 
 /** The badge stays on the toolbar icon, so nobody tests with bad data by accident. */
 export const DATA_MODES: Record<DataMode, { label: string; badge: string }> = {
@@ -54,6 +57,7 @@ export interface AutofillSettings {
 
   // Region
   country: CountryCode;
+  dataLanguage: DataLanguage;
   phoneFormat: PhoneFormat;
   dateFormat: DateFormat;
   currency: CurrencySetting;
@@ -96,6 +100,10 @@ export interface AutofillSettings {
   // Advanced
   highlightFilled: boolean;
   detailedReport: boolean;
+  /** After a fill, list the fields the page marked invalid, with its messages. */
+  validationReport: boolean;
+  /** How Copy for bug report writes the last fill. */
+  reportFormat: ReportFormat;
   /** Adds injection strings to the field menu. Off by default, for authorised testing only. */
   showSecurityValues: boolean;
   reuseProfile: boolean;
@@ -124,6 +132,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   jobTitle: "",
 
   country: "IN",
+  dataLanguage: "page",
   phoneFormat: "national",
   dateFormat: "YYYY-MM-DD",
   currency: "auto",
@@ -160,6 +169,8 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
 
   highlightFilled: false,
   detailedReport: false,
+  validationReport: false,
+  reportFormat: "markdown",
   showSecurityValues: false,
   reuseProfile: false,
   profileSeed: 0

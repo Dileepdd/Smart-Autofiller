@@ -28,6 +28,7 @@
       <ul id="details" class="details" hidden></ul>
       <div class="actions">
         <button id="undoButton" class="secondary" type="button" hidden>Undo fill</button>
+        <button id="copyButton" class="secondary" type="button" hidden>Copy for bug report</button>
         <button id="clearButton" class="secondary" type="button">Clear form</button>
       </div>
     </div>
@@ -71,7 +72,10 @@
         <div class="row"><label for="nameRegion">Names and email</label>
           <select id="nameRegion" data-setting>
             <option value="IN">Indian</option><option value="US">American</option><option value="GB">British</option>
-            <option value="CA">Canadian</option><option value="AU">Australian</option><option value="country">Same as country</option>
+            <option value="CA">Canadian</option><option value="AU">Australian</option>
+            <option value="DE">German</option><option value="FR">French</option><option value="ES">Spanish</option>
+            <option value="PT">Portuguese</option><option value="IT">Italian</option><option value="NL">Dutch</option>
+            <option value="country">Same as country</option>
           </select>
         </div>
         <div class="row"><label for="gender">Gender</label>
@@ -93,6 +97,17 @@
           <select id="country" data-setting>
             <option value="IN">India</option><option value="US">United States</option><option value="GB">United Kingdom</option>
             <option value="CA">Canada</option><option value="AU">Australia</option>
+            <option value="DE">Germany</option><option value="FR">France</option><option value="ES">Spain</option>
+            <option value="PT">Portugal</option><option value="IT">Italy</option><option value="NL">Netherlands</option>
+          </select>
+        </div>
+        <div class="row"><label for="dataLanguage">Data language</label>
+          <select id="dataLanguage" data-setting>
+            <option value="page">Follow the page</option>
+            <option value="IN">English (India)</option><option value="US">English (United States)</option><option value="GB">English (United Kingdom)</option>
+            <option value="CA">English (Canada)</option><option value="AU">English (Australia)</option>
+            <option value="DE">German (Germany)</option><option value="FR">French (France)</option><option value="ES">Spanish (Spain)</option>
+            <option value="PT">Portuguese (Portugal)</option><option value="IT">Italian (Italy)</option><option value="NL">Dutch (Netherlands)</option>
           </select>
         </div>
         <div class="row"><label for="phoneFormat">Phone format</label>
@@ -106,7 +121,7 @@
         <div class="row"><label for="currency">Currency</label>
           <select id="currency" data-setting>
             <option value="auto">From country</option><option value="INR">INR</option><option value="USD">USD</option>
-            <option value="GBP">GBP</option><option value="CAD">CAD</option><option value="AUD">AUD</option>
+            <option value="GBP">GBP</option><option value="CAD">CAD</option><option value="AUD">AUD</option><option value="EUR">EUR</option>
           </select>
         </div>
         <div class="row"><label for="addressFormat">Address</label>
@@ -225,9 +240,24 @@
       </details>
 
       <details>
+        <summary>Share and back up</summary>
+        <div class="row"><label for="reportFormat">Bug report format</label>
+          <select id="reportFormat" data-setting><option value="markdown">Markdown</option><option value="text">Plain text</option><option value="json">JSON</option></select>
+        </div>
+        <div class="actions">
+          <button id="exportButton" class="secondary" type="button">Export settings</button>
+          <button id="importButton" class="secondary" type="button">Import settings</button>
+          <input id="importFile" type="file" accept=".json,application/json" hidden />
+        </div>
+        <p id="shareState" class="hint" role="status"></p>
+        <p class="hint">The file holds your settings and test profiles, so a team can share one setup. Importing replaces both.</p>
+      </details>
+
+      <details>
         <summary>Advanced</summary>
         <label class="check"><input id="highlightFilled" data-setting type="checkbox" /> Highlight filled fields briefly</label>
         <label class="check"><input id="detailedReport" data-setting type="checkbox" /> Show a detailed fill report</label>
+        <label class="check"><input id="validationReport" data-setting type="checkbox" /> Report fields the page marks invalid, with their messages</label>
         <label class="check"><input id="reuseProfile" data-setting type="checkbox" /> Reuse the same generated data on every click</label>
         <label class="check"><input id="showSecurityValues" data-setting type="checkbox" /> Add security strings to the field menu (authorised testing only)</label>
         <p class="hint">Turn reuse off and on again for new data.</p>

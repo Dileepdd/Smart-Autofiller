@@ -3,7 +3,7 @@ import { expect, pageState, test } from "../support/harness";
 test.describe("data modes", () => {
   test("invalid data trips the browser's own validation, without submitting", async ({ extension, open }) => {
     const page = await open("qatools");
-    await extension.useSettings({ dataMode: "invalid", checkboxMode: "required" });
+    await extension.useSettings({ dataMode: "invalid", checkboxMode: "required", validationReport: true });
 
     await extension.clickToolbarIconWithoutPopup(page);
     const icon = await extension.iconState();
@@ -17,7 +17,7 @@ test.describe("data modes", () => {
     expect(state.locked).toBe("kept");
     expect(state.submitted).toBe(0);
     expect(icon.title).toContain("(Invalid data)");
-    expect(icon.title).toContain("Check validation");
+    expect(icon.title).toMatch(/Invalid: .*email/);
   });
 
   test("the mode stays on the icon after a clean fill, and goes when valid data returns", async ({ extension, open }) => {

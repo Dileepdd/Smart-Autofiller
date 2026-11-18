@@ -68,7 +68,10 @@ REALISTIC, CONNECTED DATA
 Every fill creates one consistent test person. The email matches the name, and the city, state, postal code and phone number all belong to the same country.
 
 • Names, emails, phone numbers, addresses, companies, job titles and dates
-• Data for India, the United States, the United Kingdom, Canada and Australia
+• Data for India, the United States, the United Kingdom, Canada, Australia, Germany, France, Spain, Portugal, Italy and the Netherlands
+• Reads field labels in English, German, French, Spanish, Portuguese, Italian, Dutch and Hindi
+• Follows the page's language automatically, or uses the one you choose
+• Every US state, with matching cities and ZIP codes
 • Tax ID and postal code formats for each country
 • Follows format hints shown on the page, such as "Format: XX-XXXXXXX"
 • Reads the page's own country selection and generates matching data
@@ -103,6 +106,8 @@ YOU STAY IN CONTROL
 • Fill required fields only, to check how optional fields behave
 • Custom rules, such as a fixed value for any field containing "customer"
 • Saved test profiles for different environments or user types
+• Export and import settings and profiles as a file, so a team shares one setup
+• Copy the last fill for a bug report, as Markdown, plain text or JSON
 • Choose how dropdowns, radio buttons and checkboxes are filled
 
 SAFE BY DESIGN

@@ -1,3 +1,5 @@
+import { foldAccents } from "../shared/text";
+
 export interface Signal {
   text: string;
   weight: number;
@@ -16,11 +18,12 @@ const MAX_ANCESTORS = 4;
 
 /** Normalises fullName, full_name, FullName, full-name and "Full Name *" to "full name". */
 export const splitWords = (value: string): string =>
-  value
+  foldAccents(value)
     .replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2")
     .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, "$1 $2")
     .replace(/(\p{L})(\p{N})/gu, "$1 $2")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    // Marks stay: they are vowel signs in scripts such as Devanagari.
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, " ")
     .trim()
     .toLowerCase();
 
@@ -134,6 +137,20 @@ export function isRequired(element: HTMLElement): boolean {
 
 /** The text a person sees for a radio button or similar choice. */
 export const choiceLabel = (element: HTMLElement): string => labelTexts(element).join(" ").trim();
+
+/** The name a person sees for a field, for reports: its label, then its accessible name, placeholder or name. */
+export function fieldLabel(element: HTMLElement): string {
+  const tidy = (text: string): string => text.replace(/\s*\*\s*$/, "").replace(/\s+/g, " ").trim();
+  const candidates = [
+    ...labelTexts(element),
+    element.getAttribute("aria-label") ?? "",
+    ...orphanLabelTexts(element),
+    element.getAttribute("placeholder") ?? "",
+    element.getAttribute("name") ?? "",
+    element.id
+  ];
+  return candidates.map(tidy).find(Boolean)?.slice(0, 80) ?? "Unnamed field";
+}
 
 /** Everything known about a field, each piece weighted by how directly it describes that field. */
 export function fieldSignals(element: HTMLElement): Signal[] {

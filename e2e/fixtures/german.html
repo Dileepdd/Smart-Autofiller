@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="de"><body>
+<form>
+  <div><label for="vorname">Vorname</label><input id="vorname"></div>
+  <div><label for="nachname">Nachname</label><input id="nachname"></div>
+  <div><label for="email">E-Mail-Adresse</label><input id="email"></div>
+  <div><label for="telefon">Telefonnummer</label><input id="telefon"></div>
+  <div><label for="strasse">Straße und Hausnummer</label><input id="strasse"></div>
+  <div><label for="plz">PLZ</label><input id="plz"></div>
+  <div><label for="ort">Ort</label><input id="ort"></div>
+</form>
+<script>
+  window.__state = () => Object.fromEntries([...document.querySelectorAll("input")].map((input) => [input.id, input.value]));
+</script>
+</body></html>

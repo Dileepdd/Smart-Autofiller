@@ -6,12 +6,13 @@ const KEY = "smartAutofillSettings";
 /** Accepted values for each setting that has a fixed list. */
 const CHOICES: Partial<Record<keyof AutofillSettings, readonly unknown[]>> = {
   gender: ["any", "male", "female"],
-  nameRegion: ["IN", "US", "GB", "CA", "AU", "country"],
+  nameRegion: ["US", "IN", "GB", "CA", "AU", "DE", "FR", "ES", "PT", "IT", "NL", "country"],
   usernameMode: ["name", "random"],
-  country: ["US", "IN", "GB", "CA", "AU"],
+  country: ["US", "IN", "GB", "CA", "AU", "DE", "FR", "ES", "PT", "IT", "NL"],
+  dataLanguage: ["page", "US", "IN", "GB", "CA", "AU", "DE", "FR", "ES", "PT", "IT", "NL"],
   phoneFormat: ["national", "international"],
   dateFormat: ["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY"],
-  currency: ["auto", "INR", "USD", "GBP", "CAD", "AUD"],
+  currency: ["auto", "INR", "USD", "GBP", "CAD", "AUD", "EUR"],
   addressFormat: ["standard", "international"],
   textMode: ["realistic", "random"],
   decimalPrecision: [0, 2, 4],
@@ -20,7 +21,8 @@ const CHOICES: Partial<Record<keyof AutofillSettings, readonly unknown[]>> = {
   radioMode: ["match", "first", "random"],
   multiSelectMode: ["first", "random", "multiple"],
   checkboxMode: ["required", "all", "none"],
-  fillScope: ["all", "form"]
+  fillScope: ["all", "form"],
+  reportFormat: ["text", "markdown", "json"]
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
@@ -52,6 +54,35 @@ export function migrateSettings(stored: unknown): AutofillSettings {
 export async function getSettings(): Promise<AutofillSettings> {
   const stored = await chrome.storage.local.get(KEY);
   return migrateSettings(stored[KEY]);
+}
+
+const EXPORT_APP = "smart-autofill";
+const EXPORT_VERSION = 1;
+
+export interface SettingsExport {
+  app: typeof EXPORT_APP;
+  version: number;
+  exportedAt: string;
+  settings: AutofillSettings;
+  profiles: unknown[];
+}
+
+export const exportFile = (settings: AutofillSettings, profiles: unknown[]): SettingsExport =>
+  ({ app: EXPORT_APP, version: EXPORT_VERSION, exportedAt: new Date().toISOString(), settings, profiles });
+
+/** Reads an exported file. Unknown or damaged values take their defaults, exactly as a stored setting would. */
+export function readExportFile(text: string): { settings: AutofillSettings; profiles: unknown } | { error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { error: "This file is not a Smart Autofill settings file." };
+  }
+  if (!isRecord(parsed) || parsed.app !== EXPORT_APP || !isRecord(parsed.settings)) return { error: "This file is not a Smart Autofill settings file." };
+  if (typeof parsed.version !== "number" || parsed.version > EXPORT_VERSION) return { error: "This file comes from a newer version. Update Smart Autofill first." };
+  const settings = migrateSettings(parsed.settings);
+  const problem = validateSettings(settings);
+  return problem ? { error: problem } : { settings, profiles: parsed.profiles };
 }
 
 export async function saveSettings(settings: AutofillSettings): Promise<void> {

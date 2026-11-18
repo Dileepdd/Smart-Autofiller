@@ -96,7 +96,7 @@ With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page*
 | Section | Settings |
 |---|---|
 | Identity | Email domain, domain suffix, age and experience ranges, first and last name, middle name on or off, name region (Indian by default), gender, username style, password pattern, company, department, job title |
-| Region | Country (India by default, or United States, United Kingdom, Canada, Australia), phone format, date format, currency, address format |
+| Region | Country (India by default, or United States, United Kingdom, Canada, Australia, Germany, France, Spain, Portugal, Italy, Netherlands), data language, phone format, date format, currency, address format |
 | Data generation | Text style, number range, decimals, date range, company size range, and patterns for employee, customer and invoice IDs |
 | Filling behavior | Test data mode, required fields only, dropdown, radio, multi-select and checkbox preferences, all forms or the selected form, one-click filling, custom dropdowns on or off, replacing values, unique repeated values, dynamic fields, same-origin iframes |
 | Custom rules | One `keyword = value` per line |
@@ -106,6 +106,12 @@ With **Fill on icon click** off, the icon opens a popup with **Fill Entire Page*
 Leave a name, company, department or title blank for a generated one. A text field's own date placeholder, such as `dd/mm/yyyy`, takes priority over the date format. A field's own `min` and `max` take priority over the number range, and decimals only apply where the field allows them.
 
 **Fill custom dropdowns** is off by default so a fill is instant. These dropdowns have to be opened and waited for, up to 5 seconds each when options load from a server. Native selects are always filled, and a country shown in a custom dropdown still drives the data. Turn it on in settings or the toolbar icon's right-click menu. Dropdowns with no ARIA roles are found by what appears on the page when they open. Action buttons such as Save or Apply are never treated as options.
+
+**Copy for bug reports.** After a fill, right-click anywhere on the page and choose **Copy last fill for a bug report**, as Markdown, plain text or JSON, or use **Copy for bug report** in the popup. The report lists each filled field by its label with the value it ended up with, the page address, the time, the data mode and any problems such as invalid fields. Passwords are always written as dots. The report lives only in the page until it reloads and is never stored or sent anywhere.
+
+**Share and back up.** In settings, **Export settings** saves your settings and test profiles as a JSON file, and **Import settings** loads one, so a team can share a single setup. Importing replaces both. Damaged or unknown values take their defaults, and only the values a profile may set are kept.
+
+**Report fields the page marks invalid** is off by default. Turned on, a fill waits a moment for the page to react, then lists each field the browser or the page rejected with the page's own message, such as "Invalid: zip code – Invalid Code". Nothing is submitted to find out. It reads the browser's validity, `aria-invalid`, and error text the field points to or shows beside it. Helper text such as "Format: 12345" is not mistaken for an error.
 
 **Fill dependent custom dropdowns** is also off by default. A custom dropdown that needs an earlier selection to load, such as City after State, is left empty so the fill stays quick. Turn it on to wait for those lists and fill them too. Native selects that depend on each other are always followed, because they cost almost no time.
 
@@ -151,7 +157,9 @@ A profile overrides country, email domain, age and experience ranges, names, com
 
 Select a profile in **Saved profiles** or from the toolbar icon's right-click menu. **Save profile** creates a new profile when none is active, and otherwise updates the active one.
 
-Country sets location, phone and tax ID formats: EIN (US), PAN and GSTIN (India), VAT (UK), Business Number (Canada) and ABN (Australia).
+Country sets location, phone and tax ID formats: EIN (US), PAN and GSTIN (India), VAT (UK), Business Number (Canada), ABN (Australia), and VAT or national tax numbers for Germany, France, Spain, Portugal, Italy and the Netherlands.
+
+**Other languages.** Field labels are recognised in German, French, Spanish, Portuguese, Italian, Dutch and Hindi as well as English, with or without accents. **Data language** decides whose names and addresses a fill uses. By default it follows the page: a country the page already shows, then the page's language (`<html lang="de">`), then the Country setting. English pages keep the Country setting. Choose a language there to use it on every page. Each language's name data is a separate file of 5 to 50 KB, loaded only on a page that needs it, so other pages fill as fast as before.
 
 Location already on the page wins when it stays there: a form preset to United States gets US data, whatever country is configured. A format the page spells out, such as `Format: XX-XXXXXXX` or `e.g. AB-1234`, is followed for IDs, phones and postal codes; `X` and `#` are read as digits.
 

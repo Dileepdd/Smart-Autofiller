@@ -1,7 +1,7 @@
-import { clearMessage, clearTab, FILL_TAB_MESSAGE, fillErrorMessage, fillField, FillOutcome, fillTab, undoFill, undoMessage } from "../shared/fill";
+import { clearMessage, clearTab, copyFill, FILL_TAB_MESSAGE, fillErrorMessage, fillField, FillOutcome, fillTab, undoFill, undoMessage } from "../shared/fill";
 import { getEffectiveSettings, getProfileStore, saveProfileStore, selectProfile } from "../shared/profiles";
 import { getSettings, saveSettings } from "../shared/settings";
-import { DATA_MODES, DataMode, FillResult } from "../shared/types";
+import { DATA_MODES, DataMode, FillResult, ReportFormat } from "../shared/types";
 import { libraryFor } from "../shared/valueLibrary";
 
 const NAME = "Smart Autofill";
@@ -17,6 +17,9 @@ const NO_PROFILE = `${PROFILE_PREFIX}none`;
 const MODE_PREFIX = "mode:";
 const FIELD_MENU = "field";
 const PAGE_MENU = "page";
+const COPY_MENU = "copy";
+const COPY_PREFIX = "copy:";
+const COPY_FORMATS: ReadonlyArray<[ReportFormat, string]> = [["markdown", "As Markdown"], ["text", "As plain text"], ["json", "As JSON"]];
 const LIBRARY_PREFIX = "library:";
 const VALUE_PREFIX = "value:";
 
@@ -45,6 +48,11 @@ function createFieldMenus(showSecurityValues: boolean, fillOnOpen: boolean, shor
   const fillShortcut = fillOnOpen ? shortcuts._execute_action : undefined;
   chrome.contextMenus.create({ id: PAGE_MENU, title: withShortcut("Fill entire form", fillShortcut), contexts: ["editable"] });
   chrome.contextMenus.create({ id: FIELD_MENU, title: withShortcut("Fill this field", shortcuts["fill-field"]), contexts: ["editable"] });
+  // Anywhere on the page, so the last fill can be copied into a bug report without opening anything.
+  chrome.contextMenus.create({ id: COPY_MENU, title: "Copy last fill for a bug report", contexts: ["page", "editable"] });
+  for (const [format, title] of COPY_FORMATS) {
+    chrome.contextMenus.create({ id: `${COPY_PREFIX}${format}`, parentId: COPY_MENU, title, contexts: ["page", "editable"] });
+  }
   for (const { id, title, values } of libraryFor(showSecurityValues)) {
     const parentId = `${LIBRARY_PREFIX}${id}`;
     chrome.contextMenus.create({ id: parentId, title, contexts: ["editable"] });
@@ -169,6 +177,8 @@ async function handleMenu(menuItemId: string | number, checked: boolean | undefi
     if (tabId !== undefined) await fillAndReport(tabId);
   } else if (menuItemId === FIELD_MENU) {
     if (tabId !== undefined) await fillOneField(tabId, frameId);
+  } else if (id.startsWith(COPY_PREFIX)) {
+    if (tabId !== undefined) await copyFill(tabId, id.slice(COPY_PREFIX.length) as ReportFormat);
   } else if (id.startsWith(VALUE_PREFIX)) {
     const value = libraryValue(id, (await getSettings()).showSecurityValues);
     if (tabId !== undefined && value !== undefined) await fillOneField(tabId, frameId, value);

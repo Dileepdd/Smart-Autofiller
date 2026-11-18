@@ -33,8 +33,30 @@ const common = {
 const jobs = [
   { entryPoints: ["src/popup/popup.ts"], outfile: `${outdir}/popup.js`, format: "iife", ...common },
   { entryPoints: ["src/background/index.ts"], outfile: `${outdir}/background.js`, format: "iife", ...common },
-  { entryPoints: ["src/content/index.ts"], outfile: `${outdir}/content.js`, format: "iife", ...common }
+  { entryPoints: ["src/content/index.ts"], outfile: `${outdir}/content.js`, format: "iife", ...common },
+  ...(await localeJobs())
 ];
+
+/**
+ * Each language's name data, injected only into a page that needs it. Only the parts a fill uses
+ * are copied out of Faker here, because importing a whole Faker locale also pulls in data we never read.
+ */
+async function localeJobs() {
+  const faker = await import("@faker-js/faker");
+  const STREET_KEYS = ["building_number", "direction", "secondary_address", "street_address", "street_name", "street_pattern", "street_prefix", "street_suffix"];
+  const sources = { DE: "de", FR: "fr", ES: "es", PT: "pt_PT", IT: "it", NL: "nl" };
+  return Object.entries(sources).map(([code, name]) => {
+    const { metadata, person, company, location = {} } = faker[name];
+    const street = Object.fromEntries(STREET_KEYS.filter((key) => key in location).map((key) => [key, location[key]]));
+    const data = JSON.stringify({ metadata, person, company, location: street });
+    return {
+      stdin: { contents: `import { registerLocale } from "./localeRegistry";\nregisterLocale("${code}", ${data});\n`, resolveDir: "src/generators", loader: "ts" },
+      outfile: `${outdir}/locales/${code.toLowerCase()}.js`,
+      format: "iife",
+      ...common
+    };
+  });
+}
 
 await cp("src/popup/popup.html", `${outdir}/popup.html`);
 await cp("src/popup/popup.html", `${outdir}/options.html`);
