@@ -187,3 +187,31 @@ describe("data language setting", () => {
     expect(find("#tel").value).toMatch(/^0151/);
   });
 });
+
+describe("dropdown options in other languages", () => {
+  const OPTIONS: Record<string, [string, string]> = {
+    German: ["Männlich", "Weiblich"],
+    French: ["Homme", "Femme"],
+    Spanish: ["Hombre", "Mujer"],
+    Italian: ["Maschio", "Femmina"],
+    Dutch: ["Man", "Vrouw"],
+    Hindi: ["पुरुष", "महिला"],
+    "German salutation": ["Herr", "Frau"],
+    "French salutation": ["Monsieur", "Madame"],
+    English: ["Male", "Female"]
+  };
+
+  it.each(Object.entries(OPTIONS))("picks the option for the generated person's gender in %s", async (_language, [male, female]) => {
+    for (const gender of ["male", "female"] as const) {
+      render(`<label for="g">Gender</label><select id="g"><option value="">Select</option><option>${female}</option><option>${male}</option></select>`);
+      await fillPage(settingsWith({ gender }));
+      expect(find<HTMLSelectElement>("#g").value).toBe(gender === "male" ? male : female);
+    }
+  });
+
+  it("never takes Female for a male person because one word contains the other", async () => {
+    render('<label for="g">Gender</label><select id="g"><option value="">Select</option><option>Female</option><option>Male</option></select>');
+    await fillPage(settingsWith({ gender: "male" }));
+    expect(find<HTMLSelectElement>("#g").value).toBe("Male");
+  });
+});

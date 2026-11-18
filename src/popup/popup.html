@@ -108,7 +108,8 @@
 
       <details>
         <summary>Region</summary>
-        <div class="row"><label for="country">Country</label>
+        <h3 class="group">Location and language</h3>
+        <div class="row"><div class="field-name"><label for="country">Country</label><small class="field-help">Where the generated person lives.</small></div>
           <select id="country" data-setting>
             <option value="IN">India</option><option value="US">United States</option><option value="GB">United Kingdom</option>
             <option value="CA">Canada</option><option value="AU">Australia</option>
@@ -116,7 +117,7 @@
             <option value="PT">Portugal</option><option value="IT">Italy</option><option value="NL">Netherlands</option>
           </select>
         </div>
-        <div class="row"><label for="dataLanguage">Data language</label>
+        <div class="row"><div class="field-name"><label for="dataLanguage">Data language</label><small class="field-help">Follow the page uses its language or chosen country.</small></div>
           <select id="dataLanguage" data-setting>
             <option value="page">Follow the page</option>
             <option value="IN">English (India)</option><option value="US">English (United States)</option><option value="GB">English (United Kingdom)</option>
@@ -125,6 +126,7 @@
             <option value="PT">Portuguese (Portugal)</option><option value="IT">Italian (Italy)</option><option value="NL">Dutch (Netherlands)</option>
           </select>
         </div>
+        <h3 class="group">Formats</h3>
         <div class="row"><label for="phoneFormat">Phone format</label>
           <select id="phoneFormat" data-setting><option value="national">National</option><option value="international">International</option></select>
         </div>
@@ -139,14 +141,15 @@
             <option value="GBP">GBP</option><option value="CAD">CAD</option><option value="AUD">AUD</option><option value="EUR">EUR</option>
           </select>
         </div>
-        <div class="row"><label for="addressFormat">Address</label>
+        <div class="row"><div class="field-name"><label for="addressFormat">Address</label><small class="field-help">International adds the country to full addresses.</small></div>
           <select id="addressFormat" data-setting><option value="standard">Standard</option><option value="international">International (adds country)</option></select>
         </div>
       </details>
 
       <details>
         <summary>Data generation</summary>
-        <div class="row"><label for="textMode">Text</label>
+        <h3 class="group">Text and numbers</h3>
+        <div class="row"><div class="field-name"><label for="textMode">Text</label><small class="field-help">Realistic writes readable sentences.</small></div>
           <select id="textMode" data-setting><option value="realistic">Realistic</option><option value="random">Random</option></select>
         </div>
         <div class="row"><span id="numberLabel">Numbers</span>
@@ -158,27 +161,31 @@
         <div class="row"><label for="decimalPrecision">Decimals</label>
           <select id="decimalPrecision" data-setting><option value="0">0</option><option value="2">2</option><option value="4">4</option></select>
         </div>
-        <div class="row"><label for="dateStart">Dates from</label><input id="dateStart" data-setting type="date" /></div>
+        <h3 class="group">Dates</h3>
+        <div class="row"><div class="field-name"><label for="dateStart">Dates from</label><small class="field-help">Range for general date fields.</small></div><input id="dateStart" data-setting type="date" /></div>
         <div class="row"><label for="dateEnd">Dates to</label><input id="dateEnd" data-setting type="date" /></div>
+        <h3 class="group">Company and identifiers</h3>
         <div class="row"><span id="sizeLabel">Company size</span>
           <div class="range" role="group" aria-labelledby="sizeLabel">
             <input id="companySizeMin" data-setting type="number" min="1" aria-label="Minimum company size" /><span>to</span>
             <input id="companySizeMax" data-setting type="number" min="1" aria-label="Maximum company size" />
           </div>
         </div>
-        <div class="row"><label for="employeeIdPattern">Employee ID</label><input id="employeeIdPattern" data-setting type="text" /></div>
+        <div class="row"><div class="field-name"><label for="employeeIdPattern">Employee ID</label><small class="field-help">Use {number:1000-9999} or {firstName}.</small></div><input id="employeeIdPattern" data-setting type="text" /></div>
         <div class="row"><label for="customerIdPattern">Customer ID</label><input id="customerIdPattern" data-setting type="text" /></div>
         <div class="row"><label for="invoiceIdPattern">Invoice ID</label><input id="invoiceIdPattern" data-setting type="text" /></div>
       </details>
 
       <details>
         <summary>Filling behavior</summary>
-        <div class="row"><label for="dataMode">Test data</label>
+        <h3 class="group">Kind of data</h3>
+        <div class="row"><div class="field-name"><label for="dataMode">Test data</label><small class="field-help">Valid data, or values that test the form's checks.</small></div>
           <select id="dataMode" data-setting>
             <option value="valid">Valid data</option><option value="invalid">Invalid data</option><option value="minimum">Minimum limits</option><option value="maximum">Maximum limits</option><option value="edge">Edge cases</option>
           </select>
         </div>
-        <div class="row"><label for="dropdownMode">Dropdowns</label>
+        <h3 class="group">Choices</h3>
+        <div class="row"><div class="field-name"><label for="dropdownMode">Dropdowns</label><small class="field-help">Match profile picks options that fit the person.</small></div>
           <select id="dropdownMode" data-setting>
             <option value="match">Match profile</option><option value="first">First valid</option><option value="random">Random valid</option>
           </select>
@@ -198,12 +205,14 @@
             <option value="required">Required only</option><option value="all">All</option><option value="none">None</option>
           </select>
         </div>
+        <h3 class="group">What gets filled</h3>
         <div class="row"><label for="fillScope">Fill</label>
           <select id="fillScope" data-setting><option value="all">All forms on the page</option><option value="form">Selected form only</option></select>
         </div>
         <label class="check"><input id="fillOnOpen" data-setting type="checkbox" /> Fill on icon click, without this popup</label>
         <label class="check"><input id="fillExisting" data-setting type="checkbox" /> Replace existing values</label>
         <label class="check"><input id="requiredOnly" data-setting type="checkbox" /> Required fields only</label>
+        <h3 class="group">Dropdowns and dynamic forms</h3>
         <label class="check"><input id="fillCustomDropdowns" data-setting type="checkbox" /> Fill custom dropdowns (slower)</label>
         <label class="check"><input id="fillDependentDropdowns" data-setting type="checkbox" /> Fill dependent custom dropdowns, such as City after State (slower)</label>
         <label class="check"><input id="uniqueValues" data-setting type="checkbox" /> Unique values in repeated fields</label>
@@ -221,11 +230,14 @@
         <summary>Saved profiles</summary>
         <div class="row"><label for="activeProfile">Active profile</label><select id="activeProfile"></select></div>
         <p class="hint">A profile replaces the values below during a fill. Blank means the global setting is used.</p>
+        <h3 class="group">Edit profile</h3>
         <div class="row"><label for="profileName">Name</label><input id="profileName" type="text" placeholder="Indian Employee" /></div>
         <div class="row"><label for="profileCountry">Country</label>
           <select id="profileCountry" data-profile="country">
             <option value="">Global</option><option value="IN">India</option><option value="US">United States</option>
             <option value="GB">United Kingdom</option><option value="CA">Canada</option><option value="AU">Australia</option>
+            <option value="DE">Germany</option><option value="FR">France</option><option value="ES">Spain</option>
+            <option value="PT">Portugal</option><option value="IT">Italy</option><option value="NL">Netherlands</option>
           </select>
         </div>
         <div class="row"><label for="profileEmailDomain">Email domain</label><input id="profileEmailDomain" data-profile="emailDomain" type="text" /></div>
@@ -256,9 +268,11 @@
 
       <details>
         <summary>Share and back up</summary>
-        <div class="row"><label for="reportFormat">Bug report format</label>
+        <h3 class="group">Bug reports</h3>
+        <div class="row"><div class="field-name"><label for="reportFormat">Bug report format</label><small class="field-help">Used by Copy for bug report.</small></div>
           <select id="reportFormat" data-setting><option value="markdown">Markdown</option><option value="text">Plain text</option><option value="json">JSON</option></select>
         </div>
+        <h3 class="group">Back up</h3>
         <div class="actions">
           <button id="exportButton" class="secondary" type="button">Export settings</button>
           <button id="importButton" class="secondary" type="button">Import settings</button>
@@ -270,10 +284,13 @@
 
       <details>
         <summary>Advanced</summary>
+        <h3 class="group">Reports and feedback</h3>
         <label class="check"><input id="highlightFilled" data-setting type="checkbox" /> Highlight filled fields briefly</label>
         <label class="check"><input id="detailedReport" data-setting type="checkbox" /> Show a detailed fill report</label>
         <label class="check"><input id="validationReport" data-setting type="checkbox" /> Report fields the page marks invalid, with their messages</label>
+        <h3 class="group">Generated data</h3>
         <label class="check"><input id="reuseProfile" data-setting type="checkbox" /> Reuse the same generated data on every click</label>
+        <h3 class="group">Security testing</h3>
         <label class="check"><input id="showSecurityValues" data-setting type="checkbox" /> Add security strings to the field menu (authorised testing only)</label>
         <p class="hint">Turn reuse off and on again for new data.</p>
         <p class="hint">Default shortcuts: Alt+Shift+F fills the form, Alt+Shift+D the focused field, Alt+Shift+C clears, Alt+Shift+M switches test data. Change them, or add one for Undo, in your browser's extension shortcuts page.</p>

@@ -1,3 +1,4 @@
+import { foldAccents } from "../shared/text";
 import { MultiSelectMode, SelectionMode } from "../shared/types";
 
 export interface Choice {
@@ -11,7 +12,8 @@ const OPEN_RANGE = /(\d[\d,]*)\s*\+/;
 
 const PLACEHOLDER = /^(-{2,}|(please\s+)?(select|choose|pick)\b)/i;
 
-const normalize = (text: string): string => text.toLowerCase().replace(/[^\p{L}\p{N}+]+/gu, "");
+/** Case, accents and punctuation are ignored, so "Masculin" matches "masculín" and "Mr." matches "Mr". */
+const normalize = (text: string): string => foldAccents(text.toLowerCase()).replace(/[^\p{L}\p{M}\p{N}+]+/gu, "");
 
 export const isPlaceholder = (label: string): boolean => PLACEHOLDER.test(label.trim());
 

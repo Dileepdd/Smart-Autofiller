@@ -8,8 +8,9 @@
   <div><label for="strasse">Straße und Hausnummer</label><input id="strasse"></div>
   <div><label for="plz">PLZ</label><input id="plz"></div>
   <div><label for="ort">Ort</label><input id="ort"></div>
+  <div><label for="geschlecht">Geschlecht</label><select id="geschlecht"><option value="">Bitte wählen</option><option>Weiblich</option><option>Männlich</option></select></div>
 </form>
 <script>
-  window.__state = () => Object.fromEntries([...document.querySelectorAll("input")].map((input) => [input.id, input.value]));
+  window.__state = () => Object.fromEntries([...document.querySelectorAll("input, select")].map((input) => [input.id, input.value]));
 </script>
 </body></html>

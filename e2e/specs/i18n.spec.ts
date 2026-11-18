@@ -8,9 +8,10 @@ test.describe("forms in other languages", () => {
   test("a German page gets German names and a German address", async ({ extension, open }) => {
     const page = await open("german");
 
-    const result = await fillThroughPopup(extension, page, { country: "IN" });
+    const result = await fillThroughPopup(extension, page, { country: "IN", gender: "female" });
 
     const state = await pageState(page);
+    expect(state.geschlecht).toBe("Weiblich");
     expect(firstNames(de).has(state.vorname)).toBe(true);
     expect(state.nachname).not.toBe("");
     expect(state.email).toMatch(/^[a-z0-9.]+@/);

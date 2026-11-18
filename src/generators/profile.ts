@@ -220,6 +220,15 @@ export function adoptCity(profile: Profile, label: string): void {
   else profile.city = label;
 }
 
+/**
+ * How gender and salutation options are written in the languages whose labels are recognised.
+ * Full words come before short ones, and the single letter last, so "Female" never matches "Male".
+ */
+const GENDER_OPTIONS: Readonly<Record<"male" | "female", readonly string[]>> = {
+  male: ["Male", "Mr", "Mr.", "Männlich", "Mann", "Herr", "Masculin", "Homme", "Monsieur", "M.", "Masculino", "Hombre", "Señor", "Sr.", "Maschile", "Maschio", "Uomo", "Sig.", "Mannelijk", "Dhr.", "De heer", "पुरुष", "Man"],
+  female: ["Female", "Mrs", "Ms", "Mrs.", "Ms.", "Weiblich", "Frau", "Féminin", "Femme", "Madame", "Mme", "Femenino", "Mujer", "Señora", "Sra.", "Feminino", "Mulher", "Femminile", "Femmina", "Donna", "Sig.ra", "Vrouwelijk", "Vrouw", "Mevr.", "महिला", "स्त्री", "Woman"]
+};
+
 /** Option labels or values that would match this profile, best first. */
 export function dropdownTargets(kind: string, profile: Profile): string[] {
   const locale = findLocale(profile.countryCode);
@@ -229,7 +238,7 @@ export function dropdownTargets(kind: string, profile: Profile): string[] {
   if (kind === "age") return [String(profile.age)];
   if (kind === "experience") return [String(profile.experience)];
   if (kind === "companySize") return [String(profile.companySize)];
-  if (kind === "gender") return [profile.gender, profile.gender[0]];
+  if (kind === "gender") return [...GENDER_OPTIONS[profile.gender === "Male" ? "male" : "female"], profile.gender[0]];
   if (kind === "currency") return [profile.currency];
   if (kind === "department") return [profile.department];
   if (kind === "jobTitle") return [profile.jobTitle];
