@@ -1,4 +1,6 @@
-import { adoptCity, adoptCountry, adoptRegion, createProfile, dropdownTargets, Profile } from "../generators/profile";
+import { adoptCity, adoptCountry, adoptNames, adoptRegion, createProfile, dropdownTargets, Profile } from "../generators/profile";
+import type { DatasetRow } from "../shared/dataset";
+import { createRowMatcher, isoDate, isTruthy, RowMatcher } from "./datasetMatch";
 import { customRuleValue, dateCandidates, generateValue, isDateKind, pickDate } from "../generators/values";
 import { AutofillSettings, FillResult, SelectionMode } from "../shared/types";
 import { classifyField, FieldKind, getFieldDescription } from "./classifier";
@@ -6,7 +8,7 @@ import { choiceLabel, isRequired } from "./context";
 import { comboboxHasValue, comboboxValue, fillCombobox } from "./customDropdown";
 import { isFlatpickr, pickFlatpickrDate, writeFirstAcceptedDate } from "./datePicker";
 import { collectFields, isChoice, isCombobox, isDisabled, isEditable, isInactive, isInput, isSelect, isVisible } from "./detector";
-import { hasSelection, pickChoice, pickMany, toChoice, usableOptions } from "./dropdown";
+import { hasMatch, hasSelection, pickChoice, pickMany, toChoice, usableOptions } from "./dropdown";
 import { remember, startSnapshot } from "./undo";
 import { countTypes, rememberFill, reportIssues } from "./report";
 import { validationReport } from "./validation";
@@ -44,6 +46,8 @@ interface FillRun {
   dropdownsFilled: number;
   /** Location levels this fill changed, whose children now have to load. */
   changedParents: Set<FieldKind>;
+  /** The dataset row this fill uses, if any. */
+  row?: RowMatcher;
   /** How many fields of each kind have been written, for making repeats unique. */
   kindCounts: Map<FieldKind, number>;
   changed: boolean;
@@ -87,8 +91,22 @@ const markRejected = (run: FillRun, element: HTMLElement): void => {
 
 const describe = (element: HTMLElement): string => getFieldDescription(element).slice(0, 100) || element.tagName.toLowerCase();
 
+/** The dataset row's value for a field, which wins over custom rules and generated data. */
+function datasetValue(run: FillRun, element: HTMLElement): string | undefined {
+  const entry = run.row?.valueFor(element);
+  return entry && "value" in entry ? entry.value : undefined;
+}
+
+/** A matched column with an empty cell, when blank cells should leave the field alone. */
+const datasetSkips = (run: FillRun, element: HTMLElement): boolean => {
+  const entry = run.row?.valueFor(element);
+  return entry !== undefined && "skip" in entry;
+};
+
+const NO_DATASET_OPTION = "No option matches the dataset value";
+
 const customValue = (run: FillRun, element: HTMLElement): string | undefined =>
-  customRuleValue(getFieldDescription(element), run.settings, run.profile);
+  datasetValue(run, element) ?? customRuleValue(getFieldDescription(element), run.settings, run.profile);
 
 function adoptChoice(run: FillRun, kind: FieldKind, label: string): void {
   if (kind === "country") adoptCountry(run.profile, label, run.settings);
@@ -111,6 +129,7 @@ function fillSelect(run: FillRun, select: HTMLSelectElement, kind: FieldKind): v
     return markFilled(run, select);
   }
   const { targets, mode } = selection(run, select, kind, run.settings.dropdownMode);
+  if (datasetValue(run, select) !== undefined && !hasMatch(choices, targets)) return markFailed(run, select, NO_DATASET_OPTION);
   const choice = pickChoice(choices, targets, mode);
   if (!choice) return markSkipped(run, select);
   if (select.value !== choice.value) run.changedParents.add(kind);
@@ -125,7 +144,7 @@ async function fillComboboxField(run: FillRun, trigger: HTMLElement, kind: Field
   const query = targets[0] ?? generateValue(kind, { ...run.settings, dataMode: "valid" }, run.profile);
   remember(trigger);
   const previous = comboboxValue(trigger);
-  const label = await fillCombobox(trigger, targets, query, mode);
+  const label = await fillCombobox(trigger, targets, query, mode, datasetValue(run, trigger) !== undefined);
   if (!label) {
     adoptShownValue(run, trigger, kind);
     if (!run.settings.fillDependentDropdowns || run.unselected.has(trigger)) return markFailed(run, trigger, COULD_NOT_SELECT);
@@ -205,6 +224,7 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
       if (isSelect(element) && !run.settings.fillExisting && hasSelection(element)) { markSkipped(run, element); continue; }
       if (!isSelect(element) && !run.settings.fillExisting && comboboxHasValue(element)) { markSkipped(run, element); continue; }
       if (dependsOnThisFill(run, element, kind)) { markSkipped(run, element); continue; }
+      if (datasetSkips(run, element)) { markSkipped(run, element); continue; }
       if (isPending(element)) {
         if (waitsOnDependents(run, element)) pending.push(element);
         else markSkipped(run, element);
@@ -232,6 +252,14 @@ async function fillDropdowns(run: FillRun, dropdowns: HTMLElement[]): Promise<vo
 
 function fillChoiceGroup(run: FillRun, element: HTMLInputElement): void {
   if (element.type === "checkbox") {
+    const fromSheet = datasetValue(run, element);
+    if (fromSheet !== undefined) {
+      // A sheet says yes or no for each box, so it can untick one as well as tick it.
+      if (element.checked === isTruthy(fromSheet)) return markSkipped(run, element);
+      remember(element);
+      toggle(element);
+      return markFilled(run, element);
+    }
     // Optional boxes are often marketing or consent choices, so by default only required ones are ticked.
     const required = element.required || element.getAttribute("aria-required") === "true";
     const { checkboxMode } = run.settings;
@@ -252,6 +280,16 @@ function fillChoiceGroup(run: FillRun, element: HTMLInputElement): void {
   const available = group.filter((radio) => isVisible(radio) && !isDisabled(radio));
   const choices = available.map((radio) => ({ label: choiceLabel(radio) || radio.value, value: radio.value, radio }));
   const { targets, mode } = selection(run, element, classifyField(element), run.settings.radioMode);
+  const fromSheet = group.map((radio) => datasetValue(run, radio)).find((value) => value !== undefined);
+  if (fromSheet !== undefined) {
+    // A sheet picks the radio button itself, replacing any choice already made.
+    const wanted = pickChoice(choices, [fromSheet], "match");
+    if (!wanted || !hasMatch(choices, [fromSheet])) return markFailed(run, element, NO_DATASET_OPTION);
+    if (wanted.radio.checked) return markSkipped(run, element);
+    remember(wanted.radio);
+    toggle(wanted.radio);
+    return markFilled(run, wanted.radio);
+  }
   const choice = group.some((radio) => radio.checked) ? undefined : pickChoice(choices, targets, mode);
   if (!choice) return markSkipped(run, element);
   remember(choice.radio);
@@ -292,7 +330,8 @@ async function fillText(run: FillRun, element: HTMLInputElement | HTMLTextAreaEl
   const usesPicker = custom === undefined && isDateKind(kind) && isInput(element) && element.type !== "date" && run.settings.dataMode !== "invalid";
   if (usesPicker) return fillTextDate(run, element, kind);
 
-  const value = custom ?? generateValue(kind === "skip" ? "text" : kind, run.settings, run.profile, element, repeatIndex(run, element, kind));
+  const sheetDate = custom !== undefined && isInput(element) && element.type === "date" && datasetValue(run, element) !== undefined;
+  const value = (sheetDate ? isoDate(custom, run.settings.dateFormat) : custom) ?? generateValue(kind === "skip" ? "text" : kind, run.settings, run.profile, element, repeatIndex(run, element, kind));
   // Only an excluded value, such as the middle name when that setting is off, comes back empty.
   if (value === "") return markSkipped(run, element);
   remember(element);
@@ -328,6 +367,7 @@ async function fillField(run: FillRun, element: HTMLElement): Promise<void> {
   const calendarOnly = isInput(element) && isFlatpickr(element) && !isInactive(element);
   // Left open, not final: an earlier selection may still reveal or enable this field.
   if (!element.isConnected || !isVisible(element) || (isDisabled(element) && !calendarOnly)) { run.skipped.add(element); return; }
+  if (datasetSkips(run, element)) return markSkipped(run, element);
   try {
     if (calendarOnly) await fillFlatpickr(run, element);
     else if (isEditable(element)) fillEditable(run, element);
@@ -370,7 +410,16 @@ function addDetailedReport(run: FillRun): void {
   if (lines.length > MAX_REPORT_LINES) run.result.details.push(`And ${lines.length - MAX_REPORT_LINES} more.`);
 }
 
-export async function fillPage(settings: AutofillSettings): Promise<FillResult> {
+/** Location and names from the sheet shape the generated data, so a ZIP code matches the sheet's city. */
+function adoptRow(run: FillRun): void {
+  const values = run.row?.profileValues() ?? {};
+  if (values.country) adoptCountry(run.profile, values.country, run.settings);
+  if (values.state) adoptRegion(run.profile, values.state);
+  if (values.city) adoptCity(run.profile, values.city);
+  if (values.firstName || values.lastName || values.fullName) adoptNames(run.profile, values, run.settings);
+}
+
+export async function fillPage(settings: AutofillSettings, datasetRow?: DatasetRow): Promise<FillResult> {
   const started = Date.now();
   const run: FillRun = {
     settings,
@@ -387,6 +436,11 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
     kindCounts: new Map(),
     changed: false
   };
+  if (datasetRow) {
+    run.row = createRowMatcher(datasetRow, settings.datasetBlank, document);
+    run.result.datasetRow = { number: datasetRow.number, total: datasetRow.total };
+    adoptRow(run);
+  }
   startSnapshot();
 
   const allowSubmissions = blockSubmissions(() => run.result.details.push("Blocked a form submission during the fill."));
@@ -401,7 +455,7 @@ export async function fillPage(settings: AutofillSettings): Promise<FillResult> 
   if (settings.validationReport) run.result.details.push(...(await validationReport(run.filledFields, describe)));
   if (run.skippedDropdowns) run.result.details.push(`Skipped ${run.skippedDropdowns} custom dropdowns. Turn on Fill custom dropdowns to include them.`);
   run.result.skipped = run.skipped.size;
-  rememberFill(run.filledFields, settings.dataMode, reportIssues(run.result.details));
+  rememberFill(run.filledFields, settings.dataMode, reportIssues(run.result.details), run.result.datasetRow);
   run.result.stats = { byType: countTypes(run.filledFields), ms: Date.now() - started };
   if (settings.detailedReport) addDetailedReport(run);
   if (settings.highlightFilled) highlight(run.filledFields);

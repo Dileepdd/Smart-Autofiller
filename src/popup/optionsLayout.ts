@@ -10,6 +10,7 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
   "Filling behavior": "What a fill touches, and how dropdowns, radio buttons and checkboxes are chosen.",
   "Custom rules": "Fixed values for any field whose label contains a keyword.",
   "Saved profiles": "Sets of values for different environments or user types, switched in one click.",
+  "Datasets": "Fill forms from your own rows of test data, one row per fill.",
   "Share and back up": "Export or import your setup, and choose the format for bug reports.",
   "Advanced": "Reports, highlighting and options for power users."
 };
@@ -23,6 +24,7 @@ const ICONS: Readonly<Record<string, string>> = {
   "Filling behavior": '<path d="M2.5 4h7M2.5 8h11M2.5 12h5M12 2.5v3M10.5 4h3"/>',
   "Custom rules": '<path d="M2.5 4.5h5M10.5 4.5h3M2.5 11.5h2M7.5 11.5h6"/><circle cx="9" cy="4.5" r="1.5"/><circle cx="6" cy="11.5" r="1.5"/>',
   "Saved profiles": '<path d="M4 2.5h8v11L8 10.75 4 13.5Z"/>',
+  "Datasets": '<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M2 10h12M6.5 6.5v7"/>',
   "Share and back up": '<path d="M8 10V2.5M5 5.25 8 2.5l3 2.75M3 9.5v3.25c0 .4.3.75.75.75h8.5c.4 0 .75-.35.75-.75V9.5"/>',
   "Advanced": '<path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M3.75 3.75l1.6 1.6M10.65 10.65l1.6 1.6M3.75 12.25l1.6-1.6M10.65 5.35l1.6-1.6"/>'
 };

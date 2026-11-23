@@ -4,6 +4,7 @@ import { exportFile, getSettings, readExportFile, saveSettings } from "../shared
 import { DATA_MODES, FillResult } from "../shared/types";
 import { recordAction } from "../shared/stats";
 import { initOptionsLayout, refreshOptionsLayout } from "./optionsLayout";
+import { initDatasets } from "./datasetsForm";
 import { initProfiles } from "./profilesForm";
 import { fillForm, readForm } from "./settingsForm";
 
@@ -203,6 +204,7 @@ async function load(): Promise<void> {
     }
   } catch { /* no note to show */ }
   await initProfiles(() => void showProfile());
+  initDatasets();
   await showProfile();
 }
 

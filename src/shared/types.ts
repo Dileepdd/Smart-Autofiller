@@ -15,6 +15,10 @@ export type NameRegion = CountryCode | "country";
 export type CurrencySetting = "auto" | "INR" | "USD" | "GBP" | "CAD" | "AUD" | "EUR";
 export type DataMode = "valid" | "invalid" | "minimum" | "maximum" | "edge";
 export type ReportFormat = "text" | "markdown" | "json";
+export type DatasetOrder = "next" | "same" | "random";
+export type DatasetAtEnd = "loop" | "stop";
+/** "generate" fills a blank cell's field with generated data; "empty" leaves it alone. */
+export type DatasetBlank = "generate" | "empty";
 
 /** The badge stays on the toolbar icon, so nobody tests with bad data by accident. */
 export const DATA_MODES: Record<DataMode, { label: string; badge: string }> = {
@@ -104,6 +108,11 @@ export interface AutofillSettings {
   validationReport: boolean;
   /** How Copy for bug report writes the last fill. */
   reportFormat: ReportFormat;
+  /** Fill from the uploaded dataset on every click. The right-click menu can use it either way. */
+  datasetEnabled: boolean;
+  datasetOrder: DatasetOrder;
+  datasetAtEnd: DatasetAtEnd;
+  datasetBlank: DatasetBlank;
   /** Adds injection strings to the field menu. Off by default, for authorised testing only. */
   showSecurityValues: boolean;
   reuseProfile: boolean;
@@ -171,6 +180,10 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   detailedReport: false,
   validationReport: false,
   reportFormat: "markdown",
+  datasetEnabled: false,
+  datasetOrder: "next",
+  datasetAtEnd: "loop",
+  datasetBlank: "generate",
   showSecurityValues: false,
   reuseProfile: false,
   profileSeed: 0
@@ -208,6 +221,8 @@ export interface FillStats {
 
 export interface FillResult {
   stats?: FillStats;
+  /** Set when the fill used a dataset row, for the note on the page and the report. */
+  datasetRow?: { number: number; total: number };
   filled: number;
   skipped: number;
   errors: number;

@@ -1,0 +1,17 @@
+<!doctype html>
+<html><body>
+<form>
+  <div><label for="first">First Name</label><input id="first"></div>
+  <div><label for="email">Email</label><input id="email"></div>
+  <div><label for="source">Lead Source</label><select id="source"><option value="">Select</option><option>Walk-in</option><option>Website</option><option>Referral</option></select></div>
+  <div><label><input type="checkbox" id="news"> Newsletter</label></div>
+</form>
+<script>
+  window.__state = () => ({
+    first: document.querySelector("#first").value,
+    email: document.querySelector("#email").value,
+    source: document.querySelector("#source").value,
+    news: document.querySelector("#news").checked
+  });
+</script>
+</body></html>

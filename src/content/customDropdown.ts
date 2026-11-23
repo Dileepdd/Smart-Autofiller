@@ -162,7 +162,7 @@ const pageReturned = (trigger: HTMLElement): Promise<boolean> =>
  * never a button, so this cannot reach a submit button or other page action.
  * Returns the selected label, or undefined when nothing could be selected.
  */
-export async function fillCombobox(trigger: HTMLElement, targets: string[], query: string, mode: SelectionMode): Promise<string | undefined> {
+export async function fillCombobox(trigger: HTMLElement, targets: string[], query: string, mode: SelectionMode, strict = false): Promise<string | undefined> {
   const selected = comboboxValue(trigger);
   const before = new Set(pageElements(trigger));
   press(trigger);
@@ -188,10 +188,11 @@ export async function fillCombobox(trigger: HTMLElement, targets: string[], quer
 
   const options = openOptions(trigger, before);
   // A value already there beats an arbitrary first row, and the list may only be showing its first page.
-  if (mode === "match" && selected && targets.length > 0 && !hasMatch(options, targets)) {
+  if (mode === "match" && targets.length > 0 && !hasMatch(options, targets) && (selected || strict)) {
     await closeList(trigger, before);
     await pageReturned(trigger);
-    return selected;
+    // A value from a sheet must be the one chosen, so a list without it is a failure rather than a guess.
+    return strict ? undefined : selected;
   }
   const choice = pickChoice(options, targets, mode);
   if (choice && !isAlreadySelected(choice, selected)) {

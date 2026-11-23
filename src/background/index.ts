@@ -1,4 +1,5 @@
-import { clearMessage, clearTab, copyFill, FILL_TAB_MESSAGE, fillErrorMessage, fillField, FillOutcome, fillTab, undoFill, undoMessage } from "../shared/fill";
+import { appendRow, chooseRow, DatasetRow, getCursor, getDataset, RowRequest, saveCursor, saveDataset } from "../shared/dataset";
+import { captureTab, clearMessage, clearTab, copyFill, DATASET_FILL_MESSAGE, DATASET_SAVE_MESSAGE, FILL_TAB_MESSAGE, fillErrorMessage, fillField, FillOutcome, fillTab, toastTab, undoFill, undoMessage } from "../shared/fill";
 import { getEffectiveSettings, getProfileStore, saveProfileStore, selectProfile } from "../shared/profiles";
 import { getSettings, saveSettings } from "../shared/settings";
 import { DATA_MODES, DataMode, FillResult, ReportFormat } from "../shared/types";
@@ -18,6 +19,10 @@ const NO_PROFILE = `${PROFILE_PREFIX}none`;
 const MODE_PREFIX = "mode:";
 const FIELD_MENU = "field";
 const PAGE_MENU = "page";
+const DATASET_MENU = "dataset";
+const DATASET_NEXT = "dataset:next";
+const DATASET_SAME = "dataset:same";
+const DATASET_SAVE = "dataset:save";
 const COPY_MENU = "copy";
 const COPY_PREFIX = "copy:";
 const COPY_FORMATS: ReadonlyArray<[ReportFormat, string]> = [["markdown", "As Markdown"], ["text", "As plain text"], ["json", "As JSON"]];
@@ -29,7 +34,8 @@ const SETTING_ITEMS = [
   { id: "fillOnOpen", title: "Fill on icon click" },
   { id: "fillExisting", title: "Replace existing values" },
   { id: "requiredOnly", title: "Required fields only" },
-  { id: "fillCustomDropdowns", title: "Fill custom dropdowns (slower)" }
+  { id: "fillCustomDropdowns", title: "Fill custom dropdowns (slower)" },
+  { id: "datasetEnabled", title: "Fill from dataset on every click" }
 ] as const;
 
 type Shortcuts = Record<string, string>;
@@ -49,6 +55,11 @@ function createFieldMenus(showSecurityValues: boolean, fillOnOpen: boolean, shor
   const fillShortcut = fillOnOpen ? shortcuts._execute_action : undefined;
   chrome.contextMenus.create({ id: PAGE_MENU, title: withShortcut("Fill entire form", fillShortcut), contexts: ["editable"] });
   chrome.contextMenus.create({ id: FIELD_MENU, title: withShortcut("Fill this field", shortcuts["fill-field"]), contexts: ["editable"] });
+  // From the dataset whether or not every click uses it, and a way to grow it from any form.
+  chrome.contextMenus.create({ id: DATASET_MENU, title: "Fill from dataset", contexts: ["page", "editable"] });
+  chrome.contextMenus.create({ id: DATASET_NEXT, parentId: DATASET_MENU, title: "Next row", contexts: ["page", "editable"] });
+  chrome.contextMenus.create({ id: DATASET_SAME, parentId: DATASET_MENU, title: "Same row again", contexts: ["page", "editable"] });
+  chrome.contextMenus.create({ id: DATASET_SAVE, parentId: DATASET_MENU, title: "Save this form as a dataset row", contexts: ["page", "editable"] });
   // Anywhere on the page, so the last fill can be copied into a bug report without opening anything.
   chrome.contextMenus.create({ id: COPY_MENU, title: "Copy last fill for a bug report", contexts: ["page", "editable"] });
   for (const [format, title] of COPY_FORMATS) {
@@ -192,6 +203,10 @@ async function handleMenu(menuItemId: string | number, checked: boolean | undefi
     if (tabId !== undefined) await fillAndReport(tabId);
   } else if (menuItemId === FIELD_MENU) {
     if (tabId !== undefined) await fillOneField(tabId, frameId);
+  } else if (menuItemId === DATASET_NEXT || menuItemId === DATASET_SAME) {
+    if (tabId !== undefined) await fillAndReport(tabId, menuItemId === DATASET_NEXT ? "next" : "same");
+  } else if (menuItemId === DATASET_SAVE) {
+    if (tabId !== undefined) await saveFormAsRow(tabId);
   } else if (id.startsWith(COPY_PREFIX)) {
     if (tabId !== undefined && await copyFill(tabId, id.slice(COPY_PREFIX.length) as ReportFormat)) quietly(recordAction("copies"));
   } else if (id.startsWith(VALUE_PREFIX)) {
@@ -244,12 +259,32 @@ chrome.commands.onCommand.addListener((command, tab) => {
   void handleCommand(command, tab?.id);
 });
 
+/**
+ * The row for this fill, when it should use the dataset. A missing dataset or a used-up sheet
+ * ends the fill with a note on the page instead of quietly filling generated data.
+ */
+async function rowFor(tabId: number, request: RowRequest | undefined, enabled: boolean, order: Parameters<typeof chooseRow>[3], atEnd: Parameters<typeof chooseRow>[4]): Promise<DatasetRow | string | undefined> {
+  if (!request && !enabled) return undefined;
+  const dataset = await getDataset();
+  if (!dataset || !dataset.rows.length) return request ? "No dataset yet. Add one in Options, under Datasets." : undefined;
+  const chosen = chooseRow(dataset.rows.length, await getCursor(), request ?? "auto", order, atEnd);
+  if ("exhausted" in chosen) return `All ${dataset.rows.length} dataset rows are used. Start again from row 1 in Options, under Datasets.`;
+  await saveCursor(chosen.cursor);
+  return { headers: dataset.headers, values: dataset.rows[chosen.index], number: chosen.index + 1, total: dataset.rows.length };
+}
+
 /** Runs a fill and leaves its result on the icon, where it survives the popup closing. */
-async function fillAndReport(tabId: number): Promise<FillOutcome> {
+async function fillAndReport(tabId: number, request?: RowRequest): Promise<FillOutcome> {
   await showOnIcon(tabId, "…", `${NAME}: filling`);
   try {
     const settings = await getEffectiveSettings();
-    const result = await fillTab(tabId, settings);
+    const row = await rowFor(tabId, request, settings.datasetEnabled, settings.datasetOrder, settings.datasetAtEnd);
+    if (typeof row === "string") {
+      await toastTab(tabId, row);
+      await showOnIcon(tabId, "", `${NAME}: ${row}`);
+      return { error: row };
+    }
+    const result = await fillTab(tabId, settings, row);
     if (result.stats) quietly(recordFill(result.stats, settings.dataMode, result.errors + result.unsupported));
     await showResult(tabId, result, settings.dataMode);
     return { result };
@@ -265,7 +300,31 @@ chrome.action.onClicked.addListener(async ({ id: tabId }) => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === DATASET_SAVE_MESSAGE) {
+    void saveFormAsRow(message.tabId).then(() => sendResponse({ saved: true }));
+    return true;
+  }
+  if (message?.type === DATASET_FILL_MESSAGE) {
+    void fillAndReport(message.tabId, message.request === "same" ? "same" : "next").then(sendResponse);
+    return true;
+  }
   if (message?.type !== FILL_TAB_MESSAGE) return;
   void fillAndReport(message.tabId).then(sendResponse);
   return true;
 });
+
+/** Adds the form on the page to the dataset, creating one if there is none yet. */
+async function saveFormAsRow(tabId: number): Promise<void> {
+  try {
+    const captured = await captureTab(tabId);
+    if (!captured.length) {
+      await toastTab(tabId, "Nothing to save: the form has no filled fields.");
+      return;
+    }
+    const dataset = appendRow(await getDataset(), captured);
+    await saveDataset(dataset);
+    await toastTab(tabId, `Saved as row ${dataset.rows.length} of the dataset`);
+  } catch (error) {
+    await showOnIcon(tabId, "", `${NAME}: ${fillErrorMessage(error)}`);
+  }
+}

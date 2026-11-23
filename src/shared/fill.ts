@@ -1,8 +1,9 @@
 import { localeFile, needsLocaleFile } from "../generators/localeRegistry";
+import type { DatasetRow } from "./dataset";
 import { AutofillSettings, ClearResult, FieldResult, FillResult, ReportFormat, UndoResult } from "./types";
 
 /** Runs a command in a tab or frame this extension has been granted, through a click on the icon or its menus. */
-async function sendToPage<T>(tabId: number, message: { type: string; settings?: AutofillSettings; value?: string }, frameId?: number, loadLanguage = false): Promise<T> {
+async function sendToPage<T>(tabId: number, message: { type: string; settings?: AutofillSettings; value?: string; datasetRow?: DatasetRow; message?: string }, frameId?: number, loadLanguage = false): Promise<T> {
   const target = frameId === undefined ? { tabId } : { tabId, frameIds: [frameId] };
   const send = (body: object): Promise<unknown> =>
     frameId === undefined ? chrome.tabs.sendMessage(tabId, body) : chrome.tabs.sendMessage(tabId, body, { frameId });
@@ -17,8 +18,19 @@ async function sendToPage<T>(tabId: number, message: { type: string; settings?: 
   return response;
 }
 
-export const fillTab = (tabId: number, settings: AutofillSettings): Promise<FillResult> =>
-  sendToPage(tabId, { type: "SMART_AUTOFILL_FILL", settings }, undefined, true);
+export const fillTab = (tabId: number, settings: AutofillSettings, datasetRow?: DatasetRow): Promise<FillResult> =>
+  sendToPage(tabId, { type: "SMART_AUTOFILL_FILL", settings, datasetRow }, undefined, true);
+
+/** A short note on the page, for outcomes that never reach a fill, such as every dataset row being used. */
+export const toastTab = (tabId: number, message: string): Promise<unknown> =>
+  sendToPage(tabId, { type: "SMART_AUTOFILL_TOAST", message });
+
+export const captureTab = async (tabId: number): Promise<Array<{ field: string; value: string }>> =>
+  (await sendToPage<{ fields: Array<{ field: string; value: string }> }>(tabId, { type: "SMART_AUTOFILL_CAPTURE" })).fields;
+
+/** Sent by the popup, and by tests, to fill from the dataset the way the right-click menu does. */
+export const DATASET_FILL_MESSAGE = "SMART_AUTOFILL_DATASET_FILL";
+export const DATASET_SAVE_MESSAGE = "SMART_AUTOFILL_DATASET_SAVE";
 
 export const clearTab = (tabId: number, settings: AutofillSettings): Promise<ClearResult> =>
   sendToPage(tabId, { type: "SMART_AUTOFILL_CLEAR", settings });

@@ -10,7 +10,7 @@ test.describe("options page", () => {
     const options = await extension.openOptions();
 
     await expect(options.locator("#dashboard")).toBeVisible();
-    await expect(options.locator(".side-nav button")).toHaveText(["Dashboard", "Identity", "Region", "Data generation", "Filling behavior", "Custom rules", "Saved profiles", "Share and back up", "Advanced"]);
+    await expect(options.locator(".side-nav button")).toHaveText(["Dashboard", "Identity", "Region", "Data generation", "Filling behavior", "Custom rules", "Saved profiles", "Datasets", "Share and back up", "Advanced"]);
     await expect(options.locator("#settingsForm")).toBeHidden();
 
     await options.click(".side-nav >> text=Region");

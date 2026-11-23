@@ -2,6 +2,7 @@ import { clearPage } from "./clear";
 import { fillFocusedField } from "./field";
 import { fillPage } from "./filler";
 import { dataCountry, withDataLanguage } from "./pageLanguage";
+import { captureForm } from "./capture";
 import { copyText, formatReport, lastFill } from "./report";
 import { filledMessage, showToast } from "./toast";
 import { undoLastFill } from "./undo";
@@ -27,6 +28,15 @@ if (!runtime.__smartAutofillListenerInstalled) {
     }
     if (message?.type === "SMART_AUTOFILL_CLEAR") {
       sendResponse(clearPage(settingsFrom(message)));
+      return;
+    }
+    if (message?.type === "SMART_AUTOFILL_TOAST") {
+      showToast(String(message.message ?? ""));
+      sendResponse({ shown: true });
+      return;
+    }
+    if (message?.type === "SMART_AUTOFILL_CAPTURE") {
+      sendResponse({ fields: captureForm(document) });
       return;
     }
     if (message?.type === "SMART_AUTOFILL_REPORT") {
@@ -61,9 +71,10 @@ if (!runtime.__smartAutofillListenerInstalled) {
       return;
     }
     filling = true;
-    fillPage(pageSettings(message))
+    fillPage(pageSettings(message), message.datasetRow)
       .then((result) => {
-        showToast(filledMessage(result.filled));
+        const row = result.datasetRow ? `Row ${result.datasetRow.number} of ${result.datasetRow.total} · ` : "";
+        showToast(`${row}${filledMessage(result.filled)}`);
         sendResponse(result);
       })
       .catch((error: unknown) => sendResponse(failure(String(error))))

@@ -25,6 +25,7 @@ These items are kept in your browser's local extension storage:
 - Your settings, such as country, email domain and date format
 - Any values you choose to enter, such as names, a company, a test password pattern and custom rules
 - Your saved test profiles
+- A dataset, if you upload a CSV or Excel file or save forms as rows: the sheet's rows, and which row the next fill uses. It is read only in your browser, never uploaded, and removed when you choose Remove or uninstall the extension. Use test data in it, not real people's details.
 - Usage statistics shown on the options page: how many forms and fields were filled, counts by field type and test data mode, an estimate of time saved, and daily totals for the last 90 days. These are numbers only, with no field values and no page addresses. You can reset them at any time.
 
 They stay on your device and are not synced to any account. Avoid entering real personal information or real passwords in these settings, because they are not encrypted by the extension.

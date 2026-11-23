@@ -14,6 +14,8 @@ export interface FillReport {
   dataMode: string;
   fields: FilledField[];
   issues: string[];
+  /** Such as "4 of 50", when the fill came from a dataset. */
+  datasetRow?: string;
 }
 
 const MASK = "••••••••";
@@ -34,8 +36,9 @@ function finalValue(element: HTMLElement): string {
 }
 
 /** Remembers what the last fill wrote on this page, until the page reloads. */
-export function rememberFill(elements: HTMLElement[], dataMode: DataMode, issues: string[]): void {
+export function rememberFill(elements: HTMLElement[], dataMode: DataMode, issues: string[], datasetRow?: { number: number; total: number }): void {
   lastReport = {
+    ...(datasetRow ? { datasetRow: `${datasetRow.number} of ${datasetRow.total}` } : {}),
     page: location.href,
     filledAt: new Date().toISOString(),
     dataMode: DATA_MODES[dataMode].label,
@@ -72,7 +75,8 @@ const cell = (text: string): string => text.replace(/\|/g, "\\|").replace(/\s*\n
 
 export function formatReport(report: FillReport, format: ReportFormat): string {
   if (format === "json") return JSON.stringify(report, null, 2);
-  const title = `Smart Autofill test data (${report.dataMode}), ${readableTime(report.filledAt)}`;
+  const row = report.datasetRow ? `, dataset row ${report.datasetRow}` : "";
+  const title = `Smart Autofill test data (${report.dataMode}${row}), ${readableTime(report.filledAt)}`;
   if (format === "markdown") {
     const rows = report.fields.map(({ field, value }) => `| ${cell(field)} | ${cell(value)} |`);
     const issues = report.issues.length ? ["", "**Issues**", ...report.issues.map((issue) => `- ${issue}`)] : [];

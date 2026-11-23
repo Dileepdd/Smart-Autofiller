@@ -1,4 +1,4 @@
-import { fieldSignals } from "./context";
+import { fieldSignals, splitWords } from "./context";
 import { pageLanguage, rulesFor } from "./languages";
 
 export type FieldKind =
@@ -159,6 +159,11 @@ export function classifyField(element: HTMLElement): FieldKind {
   if (allowed) return allowed[allowed.length - 1];
   if (element.getAttribute("inputmode") === "numeric") return "number";
   return element.tagName === "TEXTAREA" || element.isContentEditable ? "message" : "text";
+}
+
+/** The kind a column header names, such as "E-mail" or "PLZ", read with the same rules as field labels. */
+export function classifyText(text: string, language = ""): FieldKind | undefined {
+  return matchRule(splitWords(text), rulesFor(language));
 }
 
 /** Normalised text describing a field, used for reports and custom rules. */

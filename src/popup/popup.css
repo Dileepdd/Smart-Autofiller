@@ -127,6 +127,23 @@ body {
 .segmented button[aria-checked="true"] { background: var(--text); color: var(--surface); font-weight: 600; }
 .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
+/* ── Datasets ── */
+.dataset-drop { padding: 18px; border: 1.5px dashed var(--field-border, var(--line)); border-radius: 10px; text-align: center; }
+.dataset-drop.is-over { border-color: var(--accent); background: var(--accent-soft); }
+.dataset-drop p { margin: 0 0 12px; color: var(--muted); }
+.dataset-drop .secondary { width: auto; padding: 0 16px; }
+.dataset-summary { margin: 0 0 8px; font-weight: 600; }
+.dataset-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.dataset-table { border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.dataset-table th, .dataset-table td { max-width: 180px; padding: 6px 10px; border-bottom: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.dataset-table th { background: var(--hover); font-weight: 600; vertical-align: top; }
+.dataset-table th small { display: block; color: var(--muted); font-weight: 400; }
+.dataset-table tr:last-child td { border-bottom: 0; }
+.dataset-cursor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dataset-cursor #datasetPosition { min-width: 110px; font-weight: 600; }
+.dataset-cursor input { width: 90px !important; }
+.dataset-cursor .secondary { width: auto; margin-top: 0; padding: 0 12px; }
+
 /* ── Preview panel ── */
 .preview { position: sticky; top: 24px; }
 .preview[hidden] { display: none; }

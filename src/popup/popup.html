@@ -266,6 +266,50 @@
         </div>
       </details>
 
+      <details id="datasetsSection">
+        <summary>Datasets</summary>
+        <h3 class="group">Sheet</h3>
+        <div id="datasetEmpty" class="dataset-drop">
+          <p>Upload a CSV or Excel (.xlsx) file. The first row names the fields, such as <em>First Name</em> or <em>Lead Source</em>, and each fill uses the next row.</p>
+          <button id="datasetUpload" class="secondary" type="button">Upload CSV or Excel</button>
+        </div>
+        <div id="datasetLoaded" hidden>
+          <p id="datasetSummary" class="dataset-summary"></p>
+          <div class="dataset-table-wrap"><table id="datasetPreview" class="dataset-table"></table></div>
+          <div class="actions">
+            <button id="datasetReplace" class="secondary" type="button">Replace file</button>
+            <button id="datasetDownload" class="secondary" type="button">Download CSV</button>
+            <button id="datasetRemove" class="secondary" type="button">Remove</button>
+          </div>
+        </div>
+        <input id="datasetFile" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+        <p id="datasetState" class="hint" role="status"></p>
+        <p class="hint">Use test data only. The sheet stays in this browser and is never sent anywhere.</p>
+
+        <h3 class="group">Filling</h3>
+        <label class="check"><input id="datasetEnabled" data-setting type="checkbox" /> Fill from the dataset on every click</label>
+        <p class="hint">Off or on, right-click any page and choose <em>Fill from dataset</em> to use it.</p>
+        <div class="row"><label for="datasetOrder">Row order</label>
+          <select id="datasetOrder" data-setting><option value="next">Next row each time</option><option value="same">Same row each time</option><option value="random">Random row</option></select>
+        </div>
+        <div class="row"><label for="datasetAtEnd">After the last row</label>
+          <select id="datasetAtEnd" data-setting><option value="loop">Start again from row 1</option><option value="stop">Stop and say so</option></select>
+        </div>
+        <div class="row"><div class="field-name"><label for="datasetBlank">Empty cells</label><small class="field-help">For columns the row leaves blank.</small></div>
+          <select id="datasetBlank" data-setting><option value="generate">Fill with generated data</option><option value="empty">Leave the field as it is</option></select>
+        </div>
+
+        <h3 class="group">Current row</h3>
+        <div class="row"><span id="datasetPositionLabel">Next fill</span>
+          <div class="dataset-cursor" role="group" aria-labelledby="datasetPositionLabel">
+            <span id="datasetPosition">No dataset</span>
+            <input id="datasetGoto" type="number" min="1" aria-label="Row number to fill next" />
+            <button id="datasetGotoButton" class="secondary" type="button">Go</button>
+            <button id="datasetRestart" class="secondary" type="button">Start from row 1</button>
+          </div>
+        </div>
+      </details>
+
       <details>
         <summary>Share and back up</summary>
         <h3 class="group">Bug reports</h3>

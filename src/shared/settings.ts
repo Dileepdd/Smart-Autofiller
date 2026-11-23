@@ -22,7 +22,10 @@ const CHOICES: Partial<Record<keyof AutofillSettings, readonly unknown[]>> = {
   multiSelectMode: ["first", "random", "multiple"],
   checkboxMode: ["required", "all", "none"],
   fillScope: ["all", "form"],
-  reportFormat: ["text", "markdown", "json"]
+  reportFormat: ["text", "markdown", "json"],
+  datasetOrder: ["next", "same", "random"],
+  datasetAtEnd: ["loop", "stop"],
+  datasetBlank: ["generate", "empty"]
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;

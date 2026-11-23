@@ -220,6 +220,16 @@ export function adoptCity(profile: Profile, label: string): void {
   else profile.city = label;
 }
 
+/** Takes names a dataset supplies, so a generated email still matches them. */
+export function adoptNames(profile: Profile, names: { firstName?: string; lastName?: string; fullName?: string }, settings: AutofillSettings): void {
+  const [first, ...rest] = (names.fullName ?? "").trim().split(/\s+/);
+  profile.firstName = names.firstName?.trim() || first || profile.firstName;
+  profile.lastName = names.lastName?.trim() || (rest.length ? rest.join(" ") : profile.lastName);
+  profile.fullName = names.fullName?.trim() || `${profile.firstName} ${profile.lastName}`;
+  const domain = settings.emailDomain.replace(/^@/, "").trim() || "example.com";
+  profile.email = `${cleanDomainPart(profile.firstName)}.${cleanDomainPart(profile.lastName)}@${domain}`;
+}
+
 /**
  * How gender and salutation options are written in the languages whose labels are recognised.
  * Full words come before short ones, and the single letter last, so "Female" never matches "Male".
