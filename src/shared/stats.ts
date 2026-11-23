@@ -27,17 +27,18 @@ export interface UsageStats {
   byMode: Partial<Record<DataMode, number>>;
   problems: number;
   copies: number;
+  scripts: number;
   undos: number;
   clears: number;
   /** Forms filled and fields filled per day, keyed by local date. */
   days: Record<string, [number, number]>;
 }
 
-export type UsageAction = "copies" | "undos" | "clears";
+export type UsageAction = "copies" | "undos" | "clears" | "scripts";
 
 const empty = (): UsageStats => ({
   since: new Date().toISOString(), fills: 0, fields: 0, secondsSaved: 0, fillMs: 0,
-  byType: {}, byMode: {}, problems: 0, copies: 0, undos: 0, clears: 0, days: {}
+  byType: {}, byMode: {}, problems: 0, copies: 0, scripts: 0, undos: 0, clears: 0, days: {}
 });
 
 const count = (value: unknown): number => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0);
@@ -61,7 +62,7 @@ export function migrateStats(stored: unknown): UsageStats {
     since: typeof value.since === "string" ? value.since : base.since,
     fills: count(value.fills), fields: count(value.fields), secondsSaved: count(value.secondsSaved), fillMs: count(value.fillMs),
     byType: counts(value.byType), byMode: counts(value.byMode),
-    problems: count(value.problems), copies: count(value.copies), undos: count(value.undos), clears: count(value.clears),
+    problems: count(value.problems), copies: count(value.copies), scripts: count(value.scripts), undos: count(value.undos), clears: count(value.clears),
     days
   };
 }

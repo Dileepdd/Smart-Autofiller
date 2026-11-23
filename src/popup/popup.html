@@ -29,6 +29,7 @@
       <div class="actions">
         <button id="undoButton" class="secondary" type="button" hidden>Undo fill</button>
         <button id="copyButton" class="secondary" type="button" hidden>Copy for bug report</button>
+        <button id="scriptButton" class="secondary" type="button" hidden>Copy test script</button>
         <button id="clearButton" class="secondary" type="button">Clear form</button>
       </div>
     </div>
@@ -312,6 +313,10 @@
 
       <details>
         <summary>Share and back up</summary>
+        <h3 class="group">Test scripts</h3>
+        <div class="row"><div class="field-name"><label for="scriptFramework">Test script framework</label><small class="field-help">Used by Copy test script and the downloads.</small></div>
+          <select id="scriptFramework" data-setting><option value="playwright">Playwright (TypeScript)</option><option value="cypress">Cypress (JavaScript)</option><option value="seleniumPython">Selenium (Python)</option><option value="seleniumJava">Selenium (Java)</option></select>
+        </div>
         <h3 class="group">Bug reports</h3>
         <div class="row"><div class="field-name"><label for="reportFormat">Bug report format</label><small class="field-help">Used by Copy for bug report.</small></div>
           <select id="reportFormat" data-setting><option value="markdown">Markdown</option><option value="text">Plain text</option><option value="json">JSON</option></select>

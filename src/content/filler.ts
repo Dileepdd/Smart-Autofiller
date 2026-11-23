@@ -1,6 +1,7 @@
 import { adoptCity, adoptCountry, adoptNames, adoptRegion, createProfile, dropdownTargets, Profile } from "../generators/profile";
 import type { DatasetRow } from "../shared/dataset";
 import { createRowMatcher, isoDate, isTruthy, RowMatcher } from "./datasetMatch";
+import { rememberActions } from "./script/actions";
 import { customRuleValue, dateCandidates, generateValue, isDateKind, pickDate } from "../generators/values";
 import { AutofillSettings, FillResult, SelectionMode } from "../shared/types";
 import { classifyField, FieldKind, getFieldDescription } from "./classifier";
@@ -48,6 +49,8 @@ interface FillRun {
   changedParents: Set<FieldKind>;
   /** The dataset row this fill uses, if any. */
   row?: RowMatcher;
+  /** The dataset column behind each field it filled. */
+  columns: Map<HTMLElement, string>;
   /** How many fields of each kind have been written, for making repeats unique. */
   kindCounts: Map<FieldKind, number>;
   changed: boolean;
@@ -94,7 +97,10 @@ const describe = (element: HTMLElement): string => getFieldDescription(element).
 /** The dataset row's value for a field, which wins over custom rules and generated data. */
 function datasetValue(run: FillRun, element: HTMLElement): string | undefined {
   const entry = run.row?.valueFor(element);
-  return entry && "value" in entry ? entry.value : undefined;
+  if (!entry || !("value" in entry)) return undefined;
+  // Remembered so a data-driven test script can read this field from the same column.
+  run.columns.set(element, entry.header);
+  return entry.value;
 }
 
 /** A matched column with an empty cell, when blank cells should leave the field alone. */
@@ -433,6 +439,7 @@ export async function fillPage(settings: AutofillSettings, datasetRow?: DatasetR
     unselected: new Map(),
     dropdownsFilled: 0,
     changedParents: new Set(),
+    columns: new Map(),
     kindCounts: new Map(),
     changed: false
   };
@@ -456,6 +463,7 @@ export async function fillPage(settings: AutofillSettings, datasetRow?: DatasetR
   if (run.skippedDropdowns) run.result.details.push(`Skipped ${run.skippedDropdowns} custom dropdowns. Turn on Fill custom dropdowns to include them.`);
   run.result.skipped = run.skipped.size;
   rememberFill(run.filledFields, settings.dataMode, reportIssues(run.result.details), run.result.datasetRow);
+  rememberActions(run.filledFields, run.columns);
   run.result.stats = { byType: countTypes(run.filledFields), ms: Date.now() - started };
   if (settings.detailedReport) addDetailedReport(run);
   if (settings.highlightFilled) highlight(run.filledFields);

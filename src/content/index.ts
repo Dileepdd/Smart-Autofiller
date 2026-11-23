@@ -3,6 +3,7 @@ import { fillFocusedField } from "./field";
 import { fillPage } from "./filler";
 import { dataCountry, withDataLanguage } from "./pageLanguage";
 import { captureForm } from "./capture";
+import { handleScript } from "./script/deliver";
 import { copyText, formatReport, lastFill } from "./report";
 import { filledMessage, showToast } from "./toast";
 import { undoLastFill } from "./undo";
@@ -38,6 +39,10 @@ if (!runtime.__smartAutofillListenerInstalled) {
     if (message?.type === "SMART_AUTOFILL_CAPTURE") {
       sendResponse({ fields: captureForm(document) });
       return;
+    }
+    if (message?.type === "SMART_AUTOFILL_SCRIPT") {
+      void handleScript(message).then(sendResponse);
+      return true;
     }
     if (message?.type === "SMART_AUTOFILL_REPORT") {
       const report = lastFill();

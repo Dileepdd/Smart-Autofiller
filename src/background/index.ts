@@ -1,8 +1,9 @@
-import { appendRow, chooseRow, DatasetRow, getCursor, getDataset, RowRequest, saveCursor, saveDataset } from "../shared/dataset";
-import { captureTab, clearMessage, clearTab, copyFill, DATASET_FILL_MESSAGE, DATASET_SAVE_MESSAGE, FILL_TAB_MESSAGE, fillErrorMessage, fillField, FillOutcome, fillTab, toastTab, undoFill, undoMessage } from "../shared/fill";
+import { appendRow, chooseRow, datasetCsv, DatasetRow, getCursor, getDataset, RowRequest, saveCursor, saveDataset } from "../shared/dataset";
+import { GENERATORS, SCRIPT_FRAMEWORKS } from "../shared/script";
+import { captureTab, clearMessage, clearTab, copyFill, scriptFill, DATASET_FILL_MESSAGE, DATASET_SAVE_MESSAGE, FILL_TAB_MESSAGE, fillErrorMessage, fillField, FillOutcome, fillTab, toastTab, undoFill, undoMessage } from "../shared/fill";
 import { getEffectiveSettings, getProfileStore, saveProfileStore, selectProfile } from "../shared/profiles";
 import { getSettings, saveSettings } from "../shared/settings";
-import { DATA_MODES, DataMode, FillResult, ReportFormat } from "../shared/types";
+import { DATA_MODES, DataMode, FillResult, ReportFormat, ScriptFramework } from "../shared/types";
 import { recordAction, recordFill } from "../shared/stats";
 import { libraryFor } from "../shared/valueLibrary";
 
@@ -23,6 +24,10 @@ const DATASET_MENU = "dataset";
 const DATASET_NEXT = "dataset:next";
 const DATASET_SAME = "dataset:same";
 const DATASET_SAVE = "dataset:save";
+const SCRIPT_MENU = "script";
+const SCRIPT_PREFIX = "script:";
+const SCRIPT_FILE = "script-file";
+const SCRIPT_DATA = "script-data";
 const COPY_MENU = "copy";
 const COPY_PREFIX = "copy:";
 const COPY_FORMATS: ReadonlyArray<[ReportFormat, string]> = [["markdown", "As Markdown"], ["text", "As plain text"], ["json", "As JSON"]];
@@ -60,6 +65,14 @@ function createFieldMenus(showSecurityValues: boolean, fillOnOpen: boolean, shor
   chrome.contextMenus.create({ id: DATASET_NEXT, parentId: DATASET_MENU, title: "Next row", contexts: ["page", "editable"] });
   chrome.contextMenus.create({ id: DATASET_SAME, parentId: DATASET_MENU, title: "Same row again", contexts: ["page", "editable"] });
   chrome.contextMenus.create({ id: DATASET_SAVE, parentId: DATASET_MENU, title: "Save this form as a dataset row", contexts: ["page", "editable"] });
+  // The last fill as automated test code: steps to paste, or a whole test file to download.
+  chrome.contextMenus.create({ id: SCRIPT_MENU, title: "Copy fill as test script", contexts: ["page", "editable"] });
+  for (const framework of SCRIPT_FRAMEWORKS) {
+    chrome.contextMenus.create({ id: `${SCRIPT_PREFIX}${framework}`, parentId: SCRIPT_MENU, title: GENERATORS[framework].name, contexts: ["page", "editable"] });
+  }
+  chrome.contextMenus.create({ id: "script-separator", parentId: SCRIPT_MENU, type: "separator", contexts: ["page", "editable"] });
+  chrome.contextMenus.create({ id: SCRIPT_FILE, parentId: SCRIPT_MENU, title: "Download full test file", contexts: ["page", "editable"] });
+  chrome.contextMenus.create({ id: SCRIPT_DATA, parentId: SCRIPT_MENU, title: "Download data-driven test", contexts: ["page", "editable"] });
   // Anywhere on the page, so the last fill can be copied into a bug report without opening anything.
   chrome.contextMenus.create({ id: COPY_MENU, title: "Copy last fill for a bug report", contexts: ["page", "editable"] });
   for (const [format, title] of COPY_FORMATS) {
@@ -207,6 +220,10 @@ async function handleMenu(menuItemId: string | number, checked: boolean | undefi
     if (tabId !== undefined) await fillAndReport(tabId, menuItemId === DATASET_NEXT ? "next" : "same");
   } else if (menuItemId === DATASET_SAVE) {
     if (tabId !== undefined) await saveFormAsRow(tabId);
+  } else if (id.startsWith(SCRIPT_PREFIX)) {
+    if (tabId !== undefined && (await scriptFill(tabId, id.slice(SCRIPT_PREFIX.length) as ScriptFramework, "copy")).done) quietly(recordAction("scripts"));
+  } else if (menuItemId === SCRIPT_FILE || menuItemId === SCRIPT_DATA) {
+    if (tabId !== undefined) await downloadScript(tabId, menuItemId === SCRIPT_DATA);
   } else if (id.startsWith(COPY_PREFIX)) {
     if (tabId !== undefined && await copyFill(tabId, id.slice(COPY_PREFIX.length) as ReportFormat)) quietly(recordAction("copies"));
   } else if (id.startsWith(VALUE_PREFIX)) {
@@ -327,4 +344,12 @@ async function saveFormAsRow(tabId: number): Promise<void> {
   } catch (error) {
     await showOnIcon(tabId, "", `${NAME}: ${fillErrorMessage(error)}`);
   }
+}
+
+/** Downloads the last fill as a full test file in the chosen framework, or as a data-driven test with its CSV. */
+async function downloadScript(tabId: number, dataDriven: boolean): Promise<void> {
+  const { scriptFramework } = await getSettings();
+  const dataset = dataDriven ? await getDataset() : undefined;
+  const csv = dataset ? { name: dataset.name, text: datasetCsv(dataset) } : undefined;
+  if ((await scriptFill(tabId, scriptFramework, dataDriven ? "data" : "file", csv)).done) quietly(recordAction("scripts"));
 }

@@ -25,7 +25,8 @@ const CHOICES: Partial<Record<keyof AutofillSettings, readonly unknown[]>> = {
   reportFormat: ["text", "markdown", "json"],
   datasetOrder: ["next", "same", "random"],
   datasetAtEnd: ["loop", "stop"],
-  datasetBlank: ["generate", "empty"]
+  datasetBlank: ["generate", "empty"],
+  scriptFramework: ["playwright", "cypress", "seleniumPython", "seleniumJava"]
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;

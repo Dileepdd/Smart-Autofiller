@@ -1,8 +1,9 @@
-import { clearMessage, clearTab, FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, fillReport, undoFill, undoMessage } from "../shared/fill";
+import { clearMessage, clearTab, FILL_TAB_MESSAGE, fillErrorMessage, FillOutcome, fillReport, scriptFill, undoFill, undoMessage } from "../shared/fill";
 import { activeProfile, getEffectiveSettings, getProfileStore, sanitizeProfiles, saveProfileStore } from "../shared/profiles";
 import { exportFile, getSettings, readExportFile, saveSettings } from "../shared/settings";
 import { DATA_MODES, FillResult } from "../shared/types";
 import { recordAction } from "../shared/stats";
+import { GENERATORS } from "../shared/script";
 import { initOptionsLayout, refreshOptionsLayout } from "./optionsLayout";
 import { initDatasets } from "./datasetsForm";
 import { initProfiles } from "./profilesForm";
@@ -39,6 +40,7 @@ function showResult(result?: FillResult): void {
   byId("summary").hidden = !result;
   byId("undoButton").hidden = !result?.filled;
   byId("copyButton").hidden = !result?.filled;
+  byId("scriptButton").hidden = !result?.filled;
   showDetails(result?.details ?? []);
   if (!result) return;
   byId("countFilled").textContent = String(result.filled);
@@ -124,6 +126,20 @@ async function copyLastFill(): Promise<void> {
   }
 }
 
+/** The popup writes the clipboard itself, because the click on its button allows it. */
+async function copyTestScript(): Promise<void> {
+  const { scriptFramework } = await getSettings();
+  const { done, text } = await scriptFill(await activeTabId(), scriptFramework, "text");
+  if (!done || !text) return status("Nothing to copy yet. Fill the form first.", true);
+  try {
+    await navigator.clipboard.writeText(text);
+    void recordAction("scripts").catch(() => undefined);
+    status(`Copied ${GENERATORS[scriptFramework].name} steps.`);
+  } catch {
+    status("Could not copy to the clipboard.", true);
+  }
+}
+
 const shareState = (message: string): void => { byId("shareState").textContent = message; };
 const IMPORT_NOTE = "smartAutofillImportNote";
 
@@ -182,6 +198,7 @@ byId("fillButton").addEventListener("click", () => void fillActiveTab());
 byId("undoButton").addEventListener("click", () => void undoActiveTab());
 byId("clearButton").addEventListener("click", () => void clearActiveTab());
 byId("copyButton").addEventListener("click", () => void copyLastFill());
+byId("scriptButton").addEventListener("click", () => void copyTestScript());
 byId("exportButton").addEventListener("click", () => void exportSettings());
 byId("importButton").addEventListener("click", () => byId<HTMLInputElement>("importFile").click());
 byId("importFile").addEventListener("change", () => void importSettings());

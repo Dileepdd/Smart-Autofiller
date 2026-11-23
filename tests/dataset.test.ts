@@ -157,6 +157,19 @@ describe("filling from a row", () => {
     expect(result.datasetRow).toEqual({ number: 4, total: 50 });
   });
 
+  it("never puts a generic column such as ID into a field whose label merely contains it", async () => {
+    render(`
+      <label for="tax">Federal Tax ID</label><input id="tax">
+      <label for="company">Company Name</label><input id="company">
+      <label for="ref">ID</label><input id="ref">`);
+
+    await fillPage(settingsWith({ country: "US" }), row(["ID", "Name"], ["8", "Asha Rao"]));
+
+    expect(find("#tax").value).toMatch(/^12-\d{7}$/);
+    expect(find("#company").value).not.toBe("Asha Rao");
+    expect(find("#ref").value).toBe("8");
+  });
+
   it("writes the sheet's values as they are, even in a test data mode", async () => {
     render('<label for="mail">Email</label><input id="mail"><label for="city">City</label><input id="city">');
 

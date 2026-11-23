@@ -99,7 +99,7 @@ export function renderDashboard(root: HTMLElement, stats: UsageStats): void {
 
   const types = (Object.keys(FIELD_TYPE_LABELS) as FieldType[]).map((type): [string, number] => [FIELD_TYPE_LABELS[type], stats.byType[type] ?? 0]);
   const modes = (Object.keys(DATA_MODES) as DataMode[]).map((mode): [string, number] => [DATA_MODES[mode].label, stats.byMode[mode] ?? 0]);
-  const activity: Array<[string, number]> = [["Problems found", stats.problems], ["Bug reports copied", stats.copies], ["Undos", stats.undos], ["Forms cleared", stats.clears]];
+  const activity: Array<[string, number]> = [["Problems found", stats.problems], ["Bug reports copied", stats.copies], ["Test scripts copied", stats.scripts], ["Undos", stats.undos], ["Forms cleared", stats.clears]];
 
   const panels = element("div", "panel-grid");
   panels.append(

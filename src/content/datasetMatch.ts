@@ -7,6 +7,12 @@ import { pageLanguage } from "./languages";
 /** Kinds too broad to pair a column with a field by kind alone. */
 const BROAD_KINDS: ReadonlySet<FieldKind> = new Set(["text", "message", "number", "date", "skip"]);
 
+/** Headers too general to fill a field just because its label contains them. They still fill a field labelled exactly the same. */
+const GENERIC_HEADERS: ReadonlySet<string> = new Set([
+  "id", "no", "nr", "num", "number", "name", "code", "type", "value", "date", "time", "status", "key", "ref", "index",
+  "s no", "sno", "sl no", "sr no", "serial", "serial no", "row", "item", "text", "field", "data", "details"
+]);
+
 interface Column {
   header: string;
   words: string;
@@ -14,7 +20,7 @@ interface Column {
   value: string;
 }
 
-export type RowValue = { value: string } | { skip: true } | undefined;
+export type RowValue = { value: string; header: string } | { skip: true } | undefined;
 
 export interface RowMatcher {
   /** The row's value for a field, an instruction to leave it alone, or nothing when no column fits. */
@@ -40,7 +46,7 @@ export function createRowMatcher(row: DatasetRow, blank: DatasetBlank, document:
 
   const resolve = (column: Column | undefined): RowValue => {
     if (!column) return undefined;
-    if (column.value !== "") return { value: column.value };
+    if (column.value !== "") return { value: column.value, header: column.header };
     return blank === "empty" ? { skip: true } : undefined;
   };
 
@@ -58,7 +64,12 @@ export function createRowMatcher(row: DatasetRow, blank: DatasetBlank, document:
         if (sameKind) return resolve(sameKind);
       }
       const description = ` ${[...names].join(" ")} `;
-      return resolve(byLength.find(({ words }) => description.includes(` ${words} `)));
+      // Only a specific header may fill a field it is merely part of: "ID" must not fill "Federal Tax ID",
+      // and a "City" column never fills a field of another kind.
+      return resolve(byLength.find((column) =>
+        !GENERIC_HEADERS.has(column.words) &&
+        !(column.kind && !BROAD_KINDS.has(column.kind) && !BROAD_KINDS.has(kind) && column.kind !== kind) &&
+        description.includes(` ${column.words} `)));
     },
     profileValues() {
       const values: Partial<Record<FieldKind, string>> = {};

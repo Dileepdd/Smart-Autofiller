@@ -121,7 +121,10 @@ test.describe("location popups with a search box and plain button rows", () => {
 
     const result = await fillThroughPopup(extension, page, { country: "IN", ...CUSTOM, fillDependentDropdowns: false });
 
-    expect(await pageState(page)).toMatchObject({ state: "Alabama", city: "" });
+    // The generated state is used when the short list shows it, and otherwise the first row.
+    const state = await pageState(page);
+    expect(["Alabama", "Alaska", "Arizona"]).toContain(state.state);
+    expect(state.city).toBe("");
     expect(result.errors).toBe(0);
     expect(await page.evaluate("window.__submitted === true")).toBe(false);
   });

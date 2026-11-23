@@ -109,6 +109,7 @@ YOU STAY IN CONTROL
 • Export and import settings and profiles as a file, so a team shares one setup
 • Copy the last fill for a bug report, as Markdown, plain text or JSON
 • Fill from your own CSV or Excel test data, one row per fill
+• Copy a fill as automated test code, or download a runnable test
 • Choose how dropdowns, radio buttons and checkboxes are filled
 
 SAFE BY DESIGN

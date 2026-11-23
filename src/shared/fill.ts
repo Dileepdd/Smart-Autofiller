@@ -1,6 +1,6 @@
 import { localeFile, needsLocaleFile } from "../generators/localeRegistry";
 import type { DatasetRow } from "./dataset";
-import { AutofillSettings, ClearResult, FieldResult, FillResult, ReportFormat, UndoResult } from "./types";
+import { AutofillSettings, ClearResult, FieldResult, FillResult, ReportFormat, ScriptFramework, UndoResult } from "./types";
 
 /** Runs a command in a tab or frame this extension has been granted, through a click on the icon or its menus. */
 async function sendToPage<T>(tabId: number, message: { type: string; settings?: AutofillSettings; value?: string; datasetRow?: DatasetRow; message?: string }, frameId?: number, loadLanguage = false): Promise<T> {
@@ -60,6 +60,17 @@ export async function fillReport(tabId: number, format: ReportFormat): Promise<{
     return (await chrome.tabs.sendMessage(tabId, { type: "SMART_AUTOFILL_REPORT", format }) as { text: string; count: number } | undefined) ?? { text: "", count: 0 };
   } catch {
     return { text: "", count: 0 };
+  }
+}
+
+export type ScriptOutput = "copy" | "text" | "file" | "data";
+
+/** Copies or downloads the last fill as a test script, or returns it as text for the popup to copy. */
+export async function scriptFill(tabId: number, framework: ScriptFramework, output: ScriptOutput, csv?: { name: string; text: string }): Promise<{ done: boolean; text?: string }> {
+  try {
+    return (await chrome.tabs.sendMessage(tabId, { type: "SMART_AUTOFILL_SCRIPT", framework, output, csv }) as { done: boolean; text?: string } | undefined) ?? { done: false };
+  } catch {
+    return { done: false };
   }
 }
 

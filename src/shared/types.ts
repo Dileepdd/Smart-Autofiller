@@ -16,6 +16,7 @@ export type CurrencySetting = "auto" | "INR" | "USD" | "GBP" | "CAD" | "AUD" | "
 export type DataMode = "valid" | "invalid" | "minimum" | "maximum" | "edge";
 export type ReportFormat = "text" | "markdown" | "json";
 export type DatasetOrder = "next" | "same" | "random";
+export type ScriptFramework = "playwright" | "cypress" | "seleniumPython" | "seleniumJava";
 export type DatasetAtEnd = "loop" | "stop";
 /** "generate" fills a blank cell's field with generated data; "empty" leaves it alone. */
 export type DatasetBlank = "generate" | "empty";
@@ -113,6 +114,8 @@ export interface AutofillSettings {
   datasetOrder: DatasetOrder;
   datasetAtEnd: DatasetAtEnd;
   datasetBlank: DatasetBlank;
+  /** The framework the popup's Copy test script button and the downloads use. */
+  scriptFramework: ScriptFramework;
   /** Adds injection strings to the field menu. Off by default, for authorised testing only. */
   showSecurityValues: boolean;
   reuseProfile: boolean;
@@ -184,6 +187,7 @@ export const DEFAULT_SETTINGS: AutofillSettings = {
   datasetOrder: "next",
   datasetAtEnd: "loop",
   datasetBlank: "generate",
+  scriptFramework: "playwright",
   showSecurityValues: false,
   reuseProfile: false,
   profileSeed: 0
