@@ -1,6 +1,6 @@
 # Smart Autofill Privacy Policy
 
-**Effective date:** 18 November 2026
+**Effective date:** 23 November 2026
 
 Smart Autofill is a browser extension that fills web forms with generated test data. It is published by Durga Dileep Dunaboyina, Visakhapatnam, India.
 
