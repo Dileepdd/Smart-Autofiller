@@ -50,9 +50,13 @@ export async function copyFill(tabId: number, format: ReportFormat): Promise<boo
     const answer = await chrome.tabs.sendMessage(tabId, { type: "SMART_AUTOFILL_COPY", format }) as { copied?: boolean } | undefined;
     return answer?.copied === true;
   } catch {
+    // Nothing runs in the page until a fill, so there is nothing to copy; the page still hears why.
+    await toastTab(tabId, NOTHING_FILLED).catch(() => undefined);
     return false;
   }
 }
+
+const NOTHING_FILLED = "Nothing to copy yet. Fill the form first.";
 
 /** The last fill on that page as text, for the popup to copy. */
 export async function fillReport(tabId: number, format: ReportFormat): Promise<{ text: string; count: number }> {
@@ -70,6 +74,8 @@ export async function scriptFill(tabId: number, framework: ScriptFramework, outp
   try {
     return (await chrome.tabs.sendMessage(tabId, { type: "SMART_AUTOFILL_SCRIPT", framework, output, csv }) as { done: boolean; text?: string } | undefined) ?? { done: false };
   } catch {
+    // Nothing runs in the page until a fill. The popup shows its own message, so only menus get the note.
+    if (output !== "text") await toastTab(tabId, NOTHING_FILLED).catch(() => undefined);
     return { done: false };
   }
 }

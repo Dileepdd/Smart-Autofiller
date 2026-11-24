@@ -89,3 +89,22 @@ test.describe("test scripts", () => {
     await extension.useSettings({ datasetEnabled: false });
   });
 });
+
+test.describe("menus before any fill", () => {
+  test("asking for a script on a page not yet filled says to fill it first", async ({ extension, open }) => {
+    const page = await open("simple");
+    await extension.clickToolbarIcon(page).then((popup) => popup.close());
+    const options = await extension.openOptions();
+    const args = JSON.stringify({ url: page.url() });
+    // The same call the right-click menu makes, from an extension page.
+    await options.evaluate(`(async () => {
+      const { url } = ${args};
+      const [tab] = await chrome.tabs.query({ url });
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+      await chrome.tabs.sendMessage(tab.id, { type: "SMART_AUTOFILL_SCRIPT", framework: "playwright", output: "copy" });
+    })()`);
+    await options.close();
+
+    await expect(page.locator("#smart-autofill-toast [role=status]")).toHaveText("Nothing to turn into a script yet. Fill the form first.");
+  });
+});
